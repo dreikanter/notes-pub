@@ -1,0 +1,7 @@
+---
+notes_path: "~/Dropbox/Notes"
+build_path: "./dist"
+site_root_url: "https://notes.musayev.com"
+site_name: "Alex Musayev on Code"
+author_name: "Alex Musayev"
+assets_path: "~/Dropbox/NotesImages"
