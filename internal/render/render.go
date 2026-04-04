@@ -20,9 +20,9 @@ type notProsePreWrapper struct{}
 
 func (w notProsePreWrapper) Start(code bool, styleAttr string) string {
 	if code {
-		return fmt.Sprintf(`<pre class="not-prose chroma rounded-sm px-2 py-2 text-base leading-normal overflow-x-auto"%s><code>`, styleAttr)
+		return fmt.Sprintf(`<pre class="not-prose chroma rounded-sm px-4 py-3 text-base leading-normal overflow-x-auto"%s><code>`, styleAttr)
 	}
-	return fmt.Sprintf(`<pre class="not-prose chroma rounded-sm px-2 py-2 text-base leading-normal overflow-x-auto"%s>`, styleAttr)
+	return fmt.Sprintf(`<pre class="not-prose chroma rounded-sm px-4 py-3 text-base leading-normal overflow-x-auto"%s>`, styleAttr)
 }
 
 func (w notProsePreWrapper) End(code bool) string {
@@ -44,6 +44,7 @@ func Render(source []byte, noteIndex map[string]string, processImage ProcessImag
 			extension.GFM,
 			highlighting.NewHighlighting(
 				highlighting.WithStyle("monokailight"),
+				highlighting.WithGuessLanguage(true),
 				highlighting.WithCSSWriter(nil),
 				highlighting.WithFormatOptions(
 					chromahtml.WithClasses(true),
