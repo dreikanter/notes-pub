@@ -63,17 +63,3 @@ The `serve` command starts a local HTTP server on port 4000 (override with `--po
 ## Notes format
 
 Notes are Markdown files managed by [notescli](https://github.com/dreikanter/notescli). A note becomes part of the published site when its frontmatter includes `public: true`.
-
-## Project structure
-
-```
-cmd/notespub/     CLI entry point (Cobra commands)
-internal/
-  build/          Site generator
-  config/         YAML + env + flag config loader
-  images/         Image cache with redirect support
-  page/           Page types (note, tag, redirect)
-  render/         Markdown rendering (Goldmark + Chroma)
-templates/        HTML templates and Atom feed
-stylesheets/      Tailwind CSS source
-```
