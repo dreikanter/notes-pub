@@ -32,7 +32,7 @@ author_name: "Ada Lovelace"
 
 All values can be overridden with CLI flags:
 
-| YAML key | CLI flag | Default |
+| Config option | CLI flag | Default |
 |---|---|---|
 | `notes_path` | `--notes` | |
 | `assets_path` | `--assets` | `<notes_path>/images` |
