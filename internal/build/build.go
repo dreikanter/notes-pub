@@ -3,6 +3,7 @@ package build
 import (
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -124,11 +125,51 @@ func cleanBuildDir(buildPath string) error {
 	return nil
 }
 
+// copyStaticFiles copies all files from staticPath to buildPath, preserving
+// directory structure.
+func copyStaticFiles(staticPath, buildPath string) error {
+	return filepath.WalkDir(staticPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(staticPath, path)
+		if err != nil {
+			return err
+		}
+		dest := filepath.Join(buildPath, rel)
+		if d.IsDir() {
+			return os.MkdirAll(dest, 0o755)
+		}
+		src, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer src.Close()
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return err
+		}
+		dst, err := os.Create(dest)
+		if err != nil {
+			return err
+		}
+		defer dst.Close()
+		_, err = io.Copy(dst, src)
+		return err
+	})
+}
+
 // Build generates the static site from notes.
 func Build(cfg config.Config, templateFS fs.FS, styleCSS []byte) error {
 	// 0. Clean build directory.
 	if err := cleanBuildDir(cfg.BuildPath); err != nil {
 		return err
+	}
+
+	// 0b. Copy static files.
+	if cfg.StaticPath != "" {
+		if err := copyStaticFiles(cfg.StaticPath, cfg.BuildPath); err != nil {
+			return fmt.Errorf("copying static files: %w", err)
+		}
 	}
 
 	// 1. Scan notes.

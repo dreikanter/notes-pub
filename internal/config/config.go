@@ -17,6 +17,7 @@ type Config struct {
 	NotesPath   string `yaml:"notes_path"`
 	AssetsPath  string `yaml:"assets_path"`
 	BuildPath   string `yaml:"build_path"`
+	StaticPath  string `yaml:"static_path"`
 	SiteRootURL string `yaml:"site_root_url"`
 	SiteName    string `yaml:"site_name"`
 	AuthorName  string `yaml:"author_name"`
@@ -71,6 +72,7 @@ func Load(yamlPath string, flagOverrides map[string]string) (Config, error) {
 		"notes-path":  &cfg.NotesPath,
 		"assets-path": &cfg.AssetsPath,
 		"out":         &cfg.BuildPath,
+		"static":      &cfg.StaticPath,
 		"url":         &cfg.SiteRootURL,
 		"site-name":   &cfg.SiteName,
 		"author":      &cfg.AuthorName,
@@ -84,6 +86,7 @@ func Load(yamlPath string, flagOverrides map[string]string) (Config, error) {
 	cfg.NotesPath = expandHome(cfg.NotesPath)
 	cfg.AssetsPath = expandHome(cfg.AssetsPath)
 	cfg.BuildPath = expandHome(cfg.BuildPath)
+	cfg.StaticPath = expandHome(cfg.StaticPath)
 
 	if cfg.SiteRootURL == "" {
 		return Config{}, fmt.Errorf("site_root_url is required")

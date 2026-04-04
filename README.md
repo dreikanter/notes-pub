@@ -24,6 +24,7 @@ Create a `notespub.yml` file:
 notes_path: "~/Notes"
 build_path: "./dist"
 assets_path: "~/NotesImages"
+static_path: "~/NotesStatic"
 site_root_url: "https://example.com"
 site_name: "My Notes"
 author_name: "Your Name"
@@ -36,6 +37,7 @@ All values can be overridden with CLI flags:
 | `notes_path` | `--notes-path` |
 | `assets_path` | `--assets-path` |
 | `build_path` | `--out` |
+| `static_path` | `--static` |
 | `site_root_url` | `--url` |
 | `site_name` | `--site-name` |
 | `author_name` | `--author` |

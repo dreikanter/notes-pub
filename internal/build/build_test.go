@@ -54,6 +54,38 @@ func TestCleanBuildDirRejectsRoot(t *testing.T) {
 	}
 }
 
+func TestCopyStaticFiles(t *testing.T) {
+	staticDir := t.TempDir()
+	buildDir := t.TempDir()
+
+	// Create static files.
+	os.WriteFile(filepath.Join(staticDir, "CNAME"), []byte("example.com"), 0o644)
+	os.WriteFile(filepath.Join(staticDir, "README.md"), []byte("# Hello"), 0o644)
+	os.MkdirAll(filepath.Join(staticDir, "sub"), 0o755)
+	os.WriteFile(filepath.Join(staticDir, "sub", "file.txt"), []byte("nested"), 0o644)
+
+	if err := copyStaticFiles(staticDir, buildDir); err != nil {
+		t.Fatalf("copyStaticFiles() error: %v", err)
+	}
+
+	// Verify files were copied.
+	data, err := os.ReadFile(filepath.Join(buildDir, "CNAME"))
+	if err != nil {
+		t.Fatal("CNAME not copied")
+	}
+	if string(data) != "example.com" {
+		t.Errorf("CNAME = %q, want example.com", data)
+	}
+
+	data, err = os.ReadFile(filepath.Join(buildDir, "sub", "file.txt"))
+	if err != nil {
+		t.Fatal("sub/file.txt not copied")
+	}
+	if string(data) != "nested" {
+		t.Errorf("sub/file.txt = %q, want nested", data)
+	}
+}
+
 func TestCleanBuildDirRejectsHome(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
