@@ -18,6 +18,8 @@ module.exports = {
     "text-slate-400",
     "text-slate-800",
     "text-base",
+    "leading-normal",
+    "overflow-x-auto",
     "rounded-sm",
     {
       "pattern": /m(l|r|x|y)-.+/,
