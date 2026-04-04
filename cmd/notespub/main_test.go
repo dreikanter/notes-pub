@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/dreikanter/notespub/internal/config"
 )
 
 func TestResolveConfigPath(t *testing.T) {
@@ -40,7 +42,7 @@ func TestResolveConfigPath(t *testing.T) {
 		{
 			name:         "NOTESPUB_PATH with tilde",
 			notespubPath: "~/notes",
-			want:         filepath.Join(home, "notes", "notespub.yml"),
+			want:         filepath.Join(home, "notes", config.DefaultConfigFile),
 		},
 		{
 			name:         "NOTESPUB_PATH with env var",
@@ -56,7 +58,7 @@ func TestResolveConfigPath(t *testing.T) {
 		},
 		{
 			name: "falls back to cwd",
-			want: "notespub.yml",
+			want: config.DefaultConfigFile,
 		},
 	}
 

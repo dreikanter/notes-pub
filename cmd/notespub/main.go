@@ -66,9 +66,9 @@ func resolveConfigPath(flagValue, notespubPath string) string {
 		return flagValue
 	}
 	if notespubPath != "" {
-		return filepath.Join(expandHome(os.ExpandEnv(notespubPath)), "notespub.yml")
+		return filepath.Join(expandHome(os.ExpandEnv(notespubPath)), config.DefaultConfigFile)
 	}
-	return "notespub.yml"
+	return config.DefaultConfigFile
 }
 
 func loadConfig(cmd *cobra.Command, cfgPath string) (config.Config, error) {
