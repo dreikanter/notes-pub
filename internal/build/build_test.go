@@ -9,6 +9,93 @@ import (
 	"github.com/dreikanter/notespub/internal/config"
 )
 
+func TestCleanBuildDir(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create regular files and dirs.
+	os.WriteFile(filepath.Join(dir, "index.html"), []byte("hi"), 0o644)
+	os.MkdirAll(filepath.Join(dir, "subdir"), 0o755)
+	os.WriteFile(filepath.Join(dir, "subdir", "page.html"), []byte("hi"), 0o644)
+
+	// Create dotfiles and dotdirs that should survive.
+	os.MkdirAll(filepath.Join(dir, ".git", "objects"), 0o755)
+	os.WriteFile(filepath.Join(dir, ".nojekyll"), []byte(""), 0o644)
+
+	if err := cleanBuildDir(dir); err != nil {
+		t.Fatalf("cleanBuildDir() error: %v", err)
+	}
+
+	// Regular files should be gone.
+	if _, err := os.Stat(filepath.Join(dir, "index.html")); !os.IsNotExist(err) {
+		t.Error("index.html should have been removed")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "subdir")); !os.IsNotExist(err) {
+		t.Error("subdir should have been removed")
+	}
+
+	// Dotfiles should remain.
+	if _, err := os.Stat(filepath.Join(dir, ".git", "objects")); err != nil {
+		t.Error(".git/objects should have been preserved")
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".nojekyll")); err != nil {
+		t.Error(".nojekyll should have been preserved")
+	}
+}
+
+func TestCleanBuildDirNonExistent(t *testing.T) {
+	if err := cleanBuildDir("/tmp/notespub-does-not-exist-" + t.Name()); err != nil {
+		t.Fatalf("cleanBuildDir() should not error for non-existent dir, got: %v", err)
+	}
+}
+
+func TestCleanBuildDirRejectsRoot(t *testing.T) {
+	if err := cleanBuildDir("/"); err == nil {
+		t.Fatal("cleanBuildDir('/') should return an error")
+	}
+}
+
+func TestCopyStaticFiles(t *testing.T) {
+	staticDir := t.TempDir()
+	buildDir := t.TempDir()
+
+	// Create static files.
+	os.WriteFile(filepath.Join(staticDir, "CNAME"), []byte("example.com"), 0o644)
+	os.WriteFile(filepath.Join(staticDir, "README.md"), []byte("# Hello"), 0o644)
+	os.MkdirAll(filepath.Join(staticDir, "sub"), 0o755)
+	os.WriteFile(filepath.Join(staticDir, "sub", "file.txt"), []byte("nested"), 0o644)
+
+	if err := copyStaticFiles(staticDir, buildDir); err != nil {
+		t.Fatalf("copyStaticFiles() error: %v", err)
+	}
+
+	// Verify files were copied.
+	data, err := os.ReadFile(filepath.Join(buildDir, "CNAME"))
+	if err != nil {
+		t.Fatal("CNAME not copied")
+	}
+	if string(data) != "example.com" {
+		t.Errorf("CNAME = %q, want example.com", data)
+	}
+
+	data, err = os.ReadFile(filepath.Join(buildDir, "sub", "file.txt"))
+	if err != nil {
+		t.Fatal("sub/file.txt not copied")
+	}
+	if string(data) != "nested" {
+		t.Errorf("sub/file.txt = %q, want nested", data)
+	}
+}
+
+func TestCleanBuildDirRejectsHome(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("cannot determine home dir")
+	}
+	if err := cleanBuildDir(home); err == nil {
+		t.Fatal("cleanBuildDir(home) should return an error")
+	}
+}
+
 func writeTestNote(t *testing.T, root, relPath, content string) {
 	t.Helper()
 	full := filepath.Join(root, relPath)

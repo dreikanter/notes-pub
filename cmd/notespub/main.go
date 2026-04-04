@@ -74,7 +74,7 @@ func resolveConfigPath(flagValue, envValue string) string {
 func loadConfig(cmd *cobra.Command, cfgPath string) (config.Config, error) {
 	cfgPath = resolveConfigPath(cfgPath, os.Getenv("NOTESPUB_CONFIG"))
 
-	flagNames := []string{"notes-path", "assets-path", "out", "url", "site-name", "author"}
+	flagNames := []string{"notes-path", "assets-path", "out", "static", "url", "site-name", "author"}
 	flagOverrides := make(map[string]string)
 	for _, name := range flagNames {
 		if cmd.Flags().Changed(name) {
@@ -100,6 +100,7 @@ func init() {
 	buildCmd.Flags().String("notes-path", "", "notes store path")
 	buildCmd.Flags().String("assets-path", "", "image assets path")
 	buildCmd.Flags().String("out", "", "output directory (default: ./dist)")
+	buildCmd.Flags().String("static", "", "static files directory")
 	buildCmd.Flags().String("url", "", "site root URL")
 	buildCmd.Flags().String("site-name", "", "site name")
 	buildCmd.Flags().String("author", "", "author name")

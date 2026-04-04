@@ -36,6 +36,7 @@ All values can be overridden with CLI flags:
 | `notes_path` | `--notes-path` |
 | `assets_path` | `--assets-path` |
 | `build_path` | `--out` |
+| `static_path` | `--static` |
 | `site_root_url` | `--url` |
 | `site_name` | `--site-name` |
 | `author_name` | `--author` |
@@ -43,6 +44,10 @@ All values can be overridden with CLI flags:
 Priority: CLI flags > YAML file.
 
 The config file path defaults to `notespub.yml` in the current directory. Override it with `--config` or `NOTESPUB_CONFIG` env var.
+
+## Static files
+
+Files in the `static` subdirectory of `notes_path` are copied as-is to the build output root. Use this for files like `CNAME`, `robots.txt`, or `favicon.ico`. Override the location with `static_path` in the config or `--static` flag.
 
 ## Usage
 
