@@ -61,7 +61,9 @@ var serveCmd = &cobra.Command{
 
 func loadConfig(cmd *cobra.Command, cfgPath string) (config.Config, error) {
 	if cfgPath == "" {
-		cfgPath = os.Getenv("NOTESPUB_CONFIG")
+		if dir := os.Getenv("NOTESPUB_PATH"); dir != "" {
+			cfgPath = dir + "/notespub.yml"
+		}
 	}
 	if cfgPath == "" {
 		cfgPath = "notespub.yml"
