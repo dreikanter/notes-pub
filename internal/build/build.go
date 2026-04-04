@@ -92,8 +92,45 @@ type feedNoteData struct {
 	Body  string
 }
 
+// cleanBuildDir removes all non-dotfile entries from the build directory,
+// preserving dotfiles and dotdirs (e.g. .git, .nojekyll).
+func cleanBuildDir(buildPath string) error {
+	abs, err := filepath.Abs(buildPath)
+	if err != nil {
+		return fmt.Errorf("resolving build path: %w", err)
+	}
+
+	home, _ := os.UserHomeDir()
+	if abs == "/" || abs == home {
+		return fmt.Errorf("refusing to clean dangerous build path: %s", abs)
+	}
+
+	entries, err := os.ReadDir(abs)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("reading build dir: %w", err)
+	}
+
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(abs, e.Name())); err != nil {
+			return fmt.Errorf("removing %s: %w", e.Name(), err)
+		}
+	}
+	return nil
+}
+
 // Build generates the static site from notes.
 func Build(cfg config.Config, templateFS fs.FS, styleCSS []byte) error {
+	// 0. Clean build directory.
+	if err := cleanBuildDir(cfg.BuildPath); err != nil {
+		return err
+	}
+
 	// 1. Scan notes.
 	notes, err := note.Scan(cfg.NotesPath)
 	if err != nil {

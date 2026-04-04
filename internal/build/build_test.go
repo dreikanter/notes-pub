@@ -9,6 +9,61 @@ import (
 	"github.com/dreikanter/notespub/internal/config"
 )
 
+func TestCleanBuildDir(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create regular files and dirs.
+	os.WriteFile(filepath.Join(dir, "index.html"), []byte("hi"), 0o644)
+	os.MkdirAll(filepath.Join(dir, "subdir"), 0o755)
+	os.WriteFile(filepath.Join(dir, "subdir", "page.html"), []byte("hi"), 0o644)
+
+	// Create dotfiles and dotdirs that should survive.
+	os.MkdirAll(filepath.Join(dir, ".git", "objects"), 0o755)
+	os.WriteFile(filepath.Join(dir, ".nojekyll"), []byte(""), 0o644)
+
+	if err := cleanBuildDir(dir); err != nil {
+		t.Fatalf("cleanBuildDir() error: %v", err)
+	}
+
+	// Regular files should be gone.
+	if _, err := os.Stat(filepath.Join(dir, "index.html")); !os.IsNotExist(err) {
+		t.Error("index.html should have been removed")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "subdir")); !os.IsNotExist(err) {
+		t.Error("subdir should have been removed")
+	}
+
+	// Dotfiles should remain.
+	if _, err := os.Stat(filepath.Join(dir, ".git", "objects")); err != nil {
+		t.Error(".git/objects should have been preserved")
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".nojekyll")); err != nil {
+		t.Error(".nojekyll should have been preserved")
+	}
+}
+
+func TestCleanBuildDirNonExistent(t *testing.T) {
+	if err := cleanBuildDir("/tmp/notespub-does-not-exist-" + t.Name()); err != nil {
+		t.Fatalf("cleanBuildDir() should not error for non-existent dir, got: %v", err)
+	}
+}
+
+func TestCleanBuildDirRejectsRoot(t *testing.T) {
+	if err := cleanBuildDir("/"); err == nil {
+		t.Fatal("cleanBuildDir('/') should return an error")
+	}
+}
+
+func TestCleanBuildDirRejectsHome(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("cannot determine home dir")
+	}
+	if err := cleanBuildDir(home); err == nil {
+		t.Fatal("cleanBuildDir(home) should return an error")
+	}
+}
+
 func writeTestNote(t *testing.T, root, relPath, content string) {
 	t.Helper()
 	full := filepath.Join(root, relPath)
