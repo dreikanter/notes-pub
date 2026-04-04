@@ -3,8 +3,8 @@
 {{.Note.Body}}
 
 {{if .Note.Tags}}
-  <hr class="!my-8">
-  <div class="flex flex-row flex-wrap items-stretch !my-8">
+  <hr class="!my-6">
+  <div class="flex flex-row flex-wrap items-stretch !my-6">
     {{range .Note.Tags}}
       <a href="/tags/{{.}}" class="block border rounded-md py-0 px-2 my-1 mr-2 no-underline font-normal bg-slate-100 !text-slate-800 border-slate-200">{{.}}</a>
     {{end}}
@@ -12,7 +12,7 @@
 {{end}}
 
 {{if .Related}}
-  <hr class="!my-8">
+  <hr class="!my-6">
   <p>Somewhat related:</p>
   <ul>
     {{range .Related}}
