@@ -24,7 +24,6 @@ Create a `notespub.yml` file:
 notes_path: "~/Notes"
 build_path: "./dist"
 assets_path: "~/NotesImages"
-static_path: "~/NotesStatic"
 site_root_url: "https://example.com"
 site_name: "My Notes"
 author_name: "Your Name"
@@ -45,6 +44,10 @@ All values can be overridden with CLI flags:
 Priority: CLI flags > YAML file.
 
 The config file path defaults to `notespub.yml` in the current directory. Override it with `--config` or `NOTESPUB_CONFIG` env var.
+
+## Static files
+
+Files in the `static` subdirectory of `notes_path` are copied as-is to the build output root. Use this for files like `CNAME`, `robots.txt`, or `favicon.ico`. Override the location with `static_path` in the config or `--static` flag.
 
 ## Usage
 
