@@ -2,6 +2,8 @@
 
 {{.Note.Body}}
 
+<p class="text-slate-400"><time datetime="{{.Note.PublishedAt.Format "2006-01-02"}}">{{.Note.PublishedAt.Format "2 January 2006"}}</time></p>
+
 {{if .Note.Tags}}
   <hr class="!my-6">
   <div class="flex flex-row flex-wrap items-stretch !my-6">
