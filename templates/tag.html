@@ -1,11 +1,12 @@
+<h1 class="!mb-8 !mt-8 !leading-tight"><a href="/tags/{{.CurrentTag}}" class="no-underline">#{{.CurrentTag}}</a></h1>
+
 <div class="flex flex-row gap-8">
   <div class="flex-1 min-w-0">
-    <p class="!my-0 !mb-2 text-base text-slate-600">Tagged with <a href="/tags/{{.CurrentTag}}">{{.CurrentTag}}</a>:</p>
     <ul class="list-none !pl-0 !my-0 space-y-1">
       {{range .TaggedPages}}
-        <li>
+        <li class="!m-0 !p-0">
           <a href="/{{.PublicPath}}">{{.Title}}</a>
-          <small class="text-slate-400"><time datetime="{{.PublishedAt.Format "2006-01-02"}}">{{.PublishedAt.Format "2006/01/02"}}</time></small>
+          <small class="text-sm text-slate-400"><time datetime="{{.PublishedAt.Format "2006-01-02"}}">{{.PublishedAt.Format "2006/01/02"}}</time></small>
         </li>
       {{end}}
     </ul>
