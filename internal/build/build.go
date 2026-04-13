@@ -13,7 +13,7 @@ import (
 
 	texttemplate "text/template"
 
-	"github.com/dreikanter/notescli/note"
+	"github.com/dreikanter/notes-cli/note"
 	"github.com/dreikanter/notes-pub/internal/config"
 	"github.com/dreikanter/notes-pub/internal/images"
 	"github.com/dreikanter/notes-pub/internal/page"
