@@ -4,7 +4,7 @@
       {{range .NotePages}}
         <li class="!m-0 !p-0">
           <a href="/{{.PublicPath}}">{{.Title}}</a>
-          <small class="text-slate-400"><time datetime="{{.PublishedAt.Format "2006-01-02"}}">{{.PublishedAt.Format "2006/01/02"}}</time></small>
+          <small class="text-sm text-slate-400"><time datetime="{{.PublishedAt.Format "2006-01-02"}}">{{.PublishedAt.Format "2006/01/02"}}</time></small>
         </li>
       {{end}}
     </ul>
