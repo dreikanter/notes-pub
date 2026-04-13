@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/dreikanter/notespub/internal/config"
+	"github.com/dreikanter/notes-pub/internal/config"
 )
 
 func TestResolveConfigPath(t *testing.T) {

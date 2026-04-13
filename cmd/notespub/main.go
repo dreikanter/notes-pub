@@ -9,9 +9,9 @@ import (
 	"runtime/debug"
 	"strings"
 
-	notespub "github.com/dreikanter/notespub"
-	"github.com/dreikanter/notespub/internal/build"
-	"github.com/dreikanter/notespub/internal/config"
+	notespub "github.com/dreikanter/notes-pub"
+	"github.com/dreikanter/notes-pub/internal/build"
+	"github.com/dreikanter/notes-pub/internal/config"
 	"github.com/spf13/cobra"
 )
 

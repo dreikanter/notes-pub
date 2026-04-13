@@ -1,4 +1,4 @@
-module github.com/dreikanter/notespub
+module github.com/dreikanter/notes-pub
 
 go 1.25.7
 
