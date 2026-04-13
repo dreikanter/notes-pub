@@ -40,7 +40,7 @@ module.exports = {
               content: '""'
             },
             'code': {
-              fontSize: '1em',
+              fontSize: '0.9em',
             },
             'pre': {
               fontSize: '1em',
