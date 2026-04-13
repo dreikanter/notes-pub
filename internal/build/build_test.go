@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dreikanter/notespub/internal/config"
+	"github.com/dreikanter/notes-pub/internal/config"
 )
 
 func TestCleanBuildDir(t *testing.T) {
