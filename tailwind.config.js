@@ -38,7 +38,19 @@ module.exports = {
             },
             'code::after': {
               content: '""'
-            }
+            },
+            'code': {
+              fontSize: '1em',
+            },
+            'pre': {
+              fontSize: '1em',
+            },
+            'h2 code': {
+              fontSize: 'inherit',
+            },
+            'h3 code': {
+              fontSize: 'inherit',
+            },
           }
         }
       },
