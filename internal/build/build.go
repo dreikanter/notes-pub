@@ -307,6 +307,10 @@ func Build(cfg config.Config, templateFS fs.FS, styleCSS []byte) error {
 			Title:           np.Title,
 			MetaDescription: np.Description,
 			CanonicalPath:   np.CanonicalPath(),
+			// When there are no related links the aside isn't rendered,
+			// so the footer needs the divider to avoid sitting flush
+			// against the body content.
+			FooterSeparator: len(relatedPages) == 0,
 		}
 
 		if err := writeHTMLPage(tmpl, cfg.BuildPath, np.LocalPath(), "note.html", inner, cfgData, pd); err != nil {

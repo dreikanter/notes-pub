@@ -72,7 +72,8 @@ func resolveConfigPath(flagValue, envValue, notesPath string) string {
 		return expandHome(os.ExpandEnv(envValue))
 	}
 	if notesPath != "" {
-		candidate := filepath.Join(expandHome(os.ExpandEnv(notesPath)), config.DefaultConfigFile)
+		// Match config.Load's path handling for notes_path: expand ~/ but not $VARS.
+		candidate := filepath.Join(expandHome(notesPath), config.DefaultConfigFile)
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate
 		}
