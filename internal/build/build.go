@@ -48,6 +48,10 @@ type pageData struct {
 	Title           string
 	MetaDescription string
 	CanonicalPath   string
+	// FooterSeparator controls whether the layout renders a divider
+	// between main content and footer. Pages that already end in a
+	// visually distinct block (e.g. an aside) don't need it.
+	FooterSeparator bool
 }
 
 // noteData is the data passed to note.html inner template.
@@ -340,6 +344,7 @@ func Build(cfg config.Config, templateFS fs.FS, styleCSS []byte) error {
 	indexPD := pageData{
 		Title:           "",
 		MetaDescription: cfg.SiteName,
+		FooterSeparator: true,
 	}
 	if err := writeHTMLPage(tmpl, cfg.BuildPath, "index.html", "index.html", indexInner, cfgData, indexPD); err != nil {
 		return fmt.Errorf("writing index page: %w", err)
@@ -362,6 +367,7 @@ func Build(cfg config.Config, templateFS fs.FS, styleCSS []byte) error {
 			Title:           tag,
 			MetaDescription: fmt.Sprintf("Notes tagged with %s", tag),
 			CanonicalPath:   tp.CanonicalPath(),
+			FooterSeparator: true,
 		}
 		if err := writeHTMLPage(tmpl, cfg.BuildPath, tp.LocalPath(), "tag.html", tagInner, cfgData, tagPD); err != nil {
 			return fmt.Errorf("writing tag page %s: %w", tag, err)
