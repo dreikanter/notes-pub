@@ -71,6 +71,7 @@ type noteViewData struct {
 type indexData struct {
 	Tags      []string
 	NotePages []noteViewData
+	Intro     string
 }
 
 // tagData is the data passed to tag.html inner template.
@@ -336,6 +337,7 @@ func Build(cfg config.Config, templateFS fs.FS, styleCSS []byte) error {
 	indexInner := indexData{
 		Tags:      allTags,
 		NotePages: noteViews,
+		Intro:     cfg.Intro,
 	}
 	indexPD := pageData{
 		Title:           "",

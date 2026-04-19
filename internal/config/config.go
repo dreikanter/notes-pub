@@ -23,6 +23,7 @@ type Config struct {
 	AuthorName  string `yaml:"author_name"`
 	LicenseName string `yaml:"license_name"`
 	LicenseURL  string `yaml:"license_url"`
+	Intro       string `yaml:"intro"`
 }
 
 // SiteRootPath returns the URL path component of SiteRootURL.

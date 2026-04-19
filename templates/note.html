@@ -1,21 +1,23 @@
 <h1 class="!mb-2 !mt-8 !leading-tight"><a href="/{{.Note.PublicPath}}" class="no-underline">{{.Note.Title}}</a></h1>
 
 <div class="not-prose flex flex-row flex-wrap items-baseline gap-2 text-slate-400 !mb-8">
-  <time datetime="{{.Note.PublishedAt.Format "2006-01-02"}}">{{.Note.PublishedAt.Format "2 January 2006"}}</time>{{if .Note.Tags}}<span>&middot;</span>{{range .Note.Tags}}
+  <time datetime="{{.Note.PublishedAt.Format "2006-01-02"}}">{{.Note.PublishedAt.Format "2 Jan 2006"}}</time>{{if .Note.Tags}}<span>&middot;</span>{{range .Note.Tags}}
   <a href="/tags/{{.}}" class="no-underline hover:underline font-normal !text-slate-400 hover:!text-slate-700">#{{.}}</a>{{end}}{{end}}
 </div>
 
 {{.Note.Body}}
 
 {{if .Related}}
+  <aside aria-labelledby="related-heading" class="not-prose -mx-4 mt-10 px-4 py-3 bg-slate-100 text-slate-500 sm:rounded-lg">
+    <h2 id="related-heading" class="font-medium text-slate-600 mb-3">Somewhat related</h2>
+    <ul class="list-disc list-inside space-y-1.5">
+      {{range .Related}}
+        <li>
+          <a href="/{{.PublicPath}}" class="text-slate-600 underline hover:text-slate-800">{{.Title}}</a>
+        </li>
+      {{end}}
+    </ul>
+  </aside>
+{{else}}
   <hr class="!my-6">
-  <p>Somewhat related:</p>
-  <ul>
-    {{range .Related}}
-      <li>
-        <a href="/{{.PublicPath}}">{{.Title}}</a>
-        <small class="text-sm text-slate-400"><time datetime="{{.PublishedAt.Format "2006-01-02"}}">{{.PublishedAt.Format "2006/01/02"}}</time></small>
-      </li>
-    {{end}}
-  </ul>
 {{end}}

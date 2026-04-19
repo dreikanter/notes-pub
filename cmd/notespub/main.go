@@ -64,18 +64,31 @@ var serveCmd = &cobra.Command{
 	},
 }
 
-func resolveConfigPath(flagValue, envValue string) string {
+func resolveConfigPath(flagValue, envValue, notesPath string) string {
 	if flagValue != "" {
 		return expandHome(os.ExpandEnv(flagValue))
 	}
 	if envValue != "" {
 		return expandHome(os.ExpandEnv(envValue))
 	}
+	if notesPath != "" {
+		// Match config.Load's path handling for notes_path: expand ~/ but not $VARS.
+		candidate := filepath.Join(expandHome(notesPath), config.DefaultConfigFile)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
 	return config.DefaultConfigFile
 }
 
 func loadConfig(cmd *cobra.Command, cfgPath string) (config.Config, error) {
-	cfgPath = resolveConfigPath(cfgPath, os.Getenv("NOTESPUB_CONFIG"))
+	// Resolve notes path here too (not only in config.Load) because config
+	// discovery needs it before the yaml is read.
+	notesPath, _ := cmd.Flags().GetString("notes")
+	if notesPath == "" {
+		notesPath = os.Getenv("NOTES_PATH")
+	}
+	cfgPath = resolveConfigPath(cfgPath, os.Getenv("NOTESPUB_CONFIG"), notesPath)
 
 	flagNames := []string{"notes", "assets", "out", "static", "url", "site-name", "author", "license-name", "license-url"}
 	flagOverrides := make(map[string]string)
