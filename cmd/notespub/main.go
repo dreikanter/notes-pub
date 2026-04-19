@@ -82,6 +82,8 @@ func resolveConfigPath(flagValue, envValue, notesPath string) string {
 }
 
 func loadConfig(cmd *cobra.Command, cfgPath string) (config.Config, error) {
+	// Resolve notes path here too (not only in config.Load) because config
+	// discovery needs it before the yaml is read.
 	notesPath, _ := cmd.Flags().GetString("notes")
 	if notesPath == "" {
 		notesPath = os.Getenv("NOTES_PATH")

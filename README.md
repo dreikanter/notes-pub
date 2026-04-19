@@ -49,6 +49,7 @@ All values can be overridden with CLI flags:
 | `author_name` | `--author` | | Yes |
 | `license_name` | `--license-name` | CC BY 4.0 | |
 | `license_url` | `--license-url` | https://creativecommons.org/licenses/by/4.0/ | |
+| `intro` | | | |
 
 Priority: CLI flags > YAML config.
 
@@ -60,6 +61,8 @@ Config file discovery order:
 4. `notespub.yml` in the current directory
 
 See `notespub.sample.yml` in the repo for a starting template.
+
+The optional `intro` field renders as a paragraph above the posts list on the index page. Leave it empty or unset to omit.
 
 ### Image assets
 
