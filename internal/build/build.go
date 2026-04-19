@@ -13,11 +13,11 @@ import (
 
 	texttemplate "text/template"
 
-	"github.com/dreikanter/notescli/note"
-	"github.com/dreikanter/notespub/internal/config"
-	"github.com/dreikanter/notespub/internal/images"
-	"github.com/dreikanter/notespub/internal/page"
-	"github.com/dreikanter/notespub/internal/render"
+	"github.com/dreikanter/notes-cli/note"
+	"github.com/dreikanter/notes-pub/internal/config"
+	"github.com/dreikanter/notes-pub/internal/images"
+	"github.com/dreikanter/notes-pub/internal/page"
+	"github.com/dreikanter/notes-pub/internal/render"
 )
 
 // layoutData is the top-level data passed to layout.html.
@@ -39,6 +39,7 @@ type configData struct {
 	FeedPath     string
 	LicenseName  string
 	LicenseURL   string
+	StyleCSS     template.CSS
 	HighlightCSS template.CSS
 }
 
@@ -277,6 +278,7 @@ func Build(cfg config.Config, templateFS fs.FS, styleCSS []byte) error {
 		FeedPath:     cfg.FeedPath(),
 		LicenseName:  cfg.LicenseName,
 		LicenseURL:   cfg.LicenseURL,
+		StyleCSS:     template.CSS(styleCSS),
 		HighlightCSS: template.CSS(render.HighlightCSS()),
 	}
 
@@ -388,12 +390,6 @@ func Build(cfg config.Config, templateFS fs.FS, styleCSS []byte) error {
 		return []byte(buf.String()), nil
 	}); err != nil {
 		return fmt.Errorf("writing feed: %w", err)
-	}
-
-	// 11. Write style.css.
-	stylePath := filepath.Join(cfg.BuildPath, "style.css")
-	if err := os.WriteFile(stylePath, styleCSS, 0o644); err != nil {
-		return fmt.Errorf("writing style.css: %w", err)
 	}
 
 	return nil
