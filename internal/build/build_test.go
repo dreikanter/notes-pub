@@ -229,9 +229,9 @@ func TestBuildSkipsPrivateNote(t *testing.T) {
 		t.Fatalf("Build() error: %v", err)
 	}
 
-	notePath := filepath.Join(buildDir, "20230130_3961", "private-note", "index.html")
-	if _, err := os.Stat(notePath); err == nil {
-		t.Error("private note should not be built")
+	uidDir := filepath.Join(buildDir, "20230130_3961")
+	if _, err := os.Stat(uidDir); err == nil {
+		t.Error("private note UID directory should not be created")
 	}
 
 	indexPath := filepath.Join(buildDir, "index.html")
