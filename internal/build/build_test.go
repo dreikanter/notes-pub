@@ -5,7 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/dreikanter/notes-cli/note"
 	"github.com/dreikanter/notes-pub/internal/config"
 )
 
@@ -96,21 +98,9 @@ func TestCleanBuildDirRejectsHome(t *testing.T) {
 	}
 }
 
-func writeTestNote(t *testing.T, root, relPath, content string) {
-	t.Helper()
-	full := filepath.Join(root, relPath)
-	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func testConfig(t *testing.T, notesPath, buildPath, assetsPath string) config.Config {
+func testConfig(t *testing.T, buildPath, assetsPath string) config.Config {
 	t.Helper()
 	return config.Config{
-		NotesPath:   notesPath,
 		AssetsPath:  assetsPath,
 		BuildPath:   buildPath,
 		SiteRootURL: "https://example.com",
@@ -120,24 +110,28 @@ func testConfig(t *testing.T, notesPath, buildPath, assetsPath string) config.Co
 }
 
 func TestBuildPublicNote(t *testing.T) {
-	notesDir := t.TempDir()
 	buildDir := t.TempDir()
 	assetsDir := t.TempDir()
 
-	writeTestNote(t, notesDir, "2023/01/20230130_3961_my-note.md", `---
-title: My Test Note
-slug: my-test-note
-tags: [golang, testing]
-public: true
----
+	store := note.NewMemStore()
+	if _, err := store.Put(note.Entry{
+		ID: 3961,
+		Meta: note.Meta{
+			Title:     "My Test Note",
+			Slug:      "my-test-note",
+			Tags:      []string{"golang", "testing"},
+			Public:    true,
+			CreatedAt: time.Date(2023, 1, 30, 0, 0, 0, 0, time.UTC),
+		},
+		Body: "Hello **world**.\n",
+	}); err != nil {
+		t.Fatalf("store.Put: %v", err)
+	}
 
-Hello **world**.
-`)
-
-	cfg := testConfig(t, notesDir, buildDir, assetsDir)
+	cfg := testConfig(t, buildDir, assetsDir)
 	templateFS := os.DirFS("../../")
 	styleCSS := []byte("/* test */")
-	if err := Build(cfg, templateFS, styleCSS); err != nil {
+	if err := Build(store, cfg, templateFS, styleCSS); err != nil {
 		t.Fatalf("Build() error: %v", err)
 	}
 
@@ -211,26 +205,31 @@ Hello **world**.
 }
 
 func TestBuildSkipsPrivateNote(t *testing.T) {
-	notesDir := t.TempDir()
 	buildDir := t.TempDir()
 	assetsDir := t.TempDir()
 
-	writeTestNote(t, notesDir, "2023/01/20230130_3961_private.md", `---
-title: Private Note
-tags: [secret]
----
+	store := note.NewMemStore()
+	if _, err := store.Put(note.Entry{
+		ID: 3961,
+		Meta: note.Meta{
+			Title:     "Private Note",
+			Tags:      []string{"secret"},
+			Public:    false,
+			CreatedAt: time.Date(2023, 1, 30, 0, 0, 0, 0, time.UTC),
+		},
+		Body: "This is private.\n",
+	}); err != nil {
+		t.Fatalf("store.Put: %v", err)
+	}
 
-This is private.
-`)
-
-	cfg := testConfig(t, notesDir, buildDir, assetsDir)
+	cfg := testConfig(t, buildDir, assetsDir)
 	templateFS := os.DirFS("../../")
 	styleCSS := []byte("/* test */")
-	if err := Build(cfg, templateFS, styleCSS); err != nil {
+	if err := Build(store, cfg, templateFS, styleCSS); err != nil {
 		t.Fatalf("Build() error: %v", err)
 	}
 
-	notePath := filepath.Join(buildDir, "20230130_3961", "private", "index.html")
+	notePath := filepath.Join(buildDir, "20230130_3961", "private-note", "index.html")
 	if _, err := os.Stat(notePath); err == nil {
 		t.Error("private note should not be built")
 	}
@@ -246,34 +245,41 @@ This is private.
 }
 
 func TestBuildNoteLinkResolution(t *testing.T) {
-	notesDir := t.TempDir()
 	buildDir := t.TempDir()
 	assetsDir := t.TempDir()
 
-	writeTestNote(t, notesDir, "2023/01/20230130_3961_first.md", `---
-title: First Note
-slug: first-note
-tags: [test]
-public: true
----
+	store := note.NewMemStore()
+	if _, err := store.Put(note.Entry{
+		ID: 3961,
+		Meta: note.Meta{
+			Title:     "First Note",
+			Slug:      "first-note",
+			Tags:      []string{"test"},
+			Public:    true,
+			CreatedAt: time.Date(2023, 1, 30, 0, 0, 0, 0, time.UTC),
+		},
+		Body: "See [second note](3962).\n",
+	}); err != nil {
+		t.Fatalf("store.Put (first): %v", err)
+	}
+	if _, err := store.Put(note.Entry{
+		ID: 3962,
+		Meta: note.Meta{
+			Title:     "Second Note",
+			Slug:      "second-note",
+			Tags:      []string{"test"},
+			Public:    true,
+			CreatedAt: time.Date(2023, 1, 31, 0, 0, 0, 0, time.UTC),
+		},
+		Body: "Hello from second note.\n",
+	}); err != nil {
+		t.Fatalf("store.Put (second): %v", err)
+	}
 
-See [second note](3962).
-`)
-
-	writeTestNote(t, notesDir, "2023/01/20230131_3962_second.md", `---
-title: Second Note
-slug: second-note
-tags: [test]
-public: true
----
-
-Hello from second note.
-`)
-
-	cfg := testConfig(t, notesDir, buildDir, assetsDir)
+	cfg := testConfig(t, buildDir, assetsDir)
 	templateFS := os.DirFS("../../")
 	styleCSS := []byte("/* test */")
-	if err := Build(cfg, templateFS, styleCSS); err != nil {
+	if err := Build(store, cfg, templateFS, styleCSS); err != nil {
 		t.Fatalf("Build() error: %v", err)
 	}
 
