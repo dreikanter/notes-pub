@@ -292,3 +292,53 @@ func TestBuildNoteLinkResolution(t *testing.T) {
 		t.Errorf("expected resolved note link, got: %s", data)
 	}
 }
+
+func TestChooseSlug(t *testing.T) {
+	tests := []struct {
+		name  string
+		entry note.Entry
+		want  string
+	}{
+		{
+			name:  "explicit slug wins",
+			entry: note.Entry{ID: 42, Meta: note.Meta{Slug: "explicit-slug", Title: "Some Title"}},
+			want:  "explicit-slug",
+		},
+		{
+			name:  "title fallback when slug empty",
+			entry: note.Entry{ID: 42, Meta: note.Meta{Title: "Some Title"}},
+			want:  "some-title",
+		},
+		{
+			name:  "ID fallback when slug and title both empty",
+			entry: note.Entry{ID: 42},
+			want:  "42",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := chooseSlug(tt.entry); got != tt.want {
+				t.Errorf("chooseSlug() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTitleOrUID(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		uid   string
+		want  string
+	}{
+		{name: "non-empty title wins", title: "Hello", uid: "20230130_42", want: "Hello"},
+		{name: "empty title falls back to uid", title: "", uid: "20230130_42", want: "20230130_42"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := titleOrUID(tt.title, tt.uid); got != tt.want {
+				t.Errorf("titleOrUID(%q, %q) = %q, want %q", tt.title, tt.uid, got, tt.want)
+			}
+		})
+	}
+}
