@@ -1,0 +1,34 @@
+# npub configuration. Uncomment any line below and edit it to override the
+# default. Required fields (site_root_url, site_name, author_name) must be set.
+
+# Path to the notes directory. Falls back to the NOTES_PATH env var.
+# notes_path: "~/notes"
+
+# Path where downloaded image assets are cached.
+# Defaults to <notes_path>/images.
+# assets_path: ""
+
+# Output directory for the built site.
+# build_path: "./dist"
+
+# Files copied as-is to the build root (CNAME, robots.txt, favicon.ico, etc.).
+# Defaults to <notes_path>/static.
+# static_path: ""
+
+# Site root URL (required).
+# site_root_url: "https://example.com"
+
+# Site name shown in headers and feeds (required).
+# site_name: "My Notes"
+
+# Author name shown in metadata and feeds (required).
+# author_name: "Ada Lovelace"
+
+# License name displayed in the footer.
+# license_name: "CC BY 4.0"
+
+# License URL linked from the footer.
+# license_url: "https://creativecommons.org/licenses/by/4.0/"
+
+# Optional paragraph rendered above the posts list on the index page.
+# intro: ""

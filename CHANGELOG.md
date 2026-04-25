@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0] - 2026-04-25
+
+### Added
+
+- `npub init [path]` command that scaffolds a starter `npub.yml` in the given directory (default: current directory). The generated file lists every config option set to its default and commented out.
+
+### Changed
+
+- Rename `npub.sample.yml` to `npub.yml.sample` and embed it in the binary; `npub init` writes this template.
+
 ## [0.2.0] - 2026-04-25
 
 ### Changed

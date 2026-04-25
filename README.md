@@ -26,15 +26,14 @@ make build
 
 ## Configuration
 
-Create a `npub.yml` file:
+Generate a starter `npub.yml` in the current directory (or pass a target path):
 
-```yaml
-notes_path: "~/notes"
-build_path: "dist"
-site_root_url: "https://example.com"
-site_name: "My Notes"
-author_name: "Ada Lovelace"
+```sh
+npub init
+npub init path/to/project
 ```
+
+The generated file lists every option set to its default and commented out — uncomment and edit what you need. Required fields are `site_root_url`, `site_name`, and `author_name`.
 
 All values can be overridden with CLI flags:
 
@@ -60,7 +59,7 @@ Config file discovery order:
 3. `npub.yml` inside `$NOTES_PATH` (or `--notes` value) if it exists
 4. `npub.yml` in the current directory
 
-See `npub.sample.yml` in the repo for a starting template.
+See `npub.yml.sample` in the repo for the same starting template.
 
 The optional `intro` field renders as a paragraph above the posts list on the index page. Leave it empty or unset to omit.
 

@@ -137,4 +137,5 @@ func init() {
 
 	rootCmd.AddCommand(buildCmd)
 	rootCmd.AddCommand(serveCmd)
+	rootCmd.AddCommand(initCmd)
 }
