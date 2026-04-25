@@ -204,6 +204,74 @@ func TestBuildPublicNote(t *testing.T) {
 	}
 }
 
+func TestBuildStripsMarkdownCodeTicksFromTitle(t *testing.T) {
+	buildDir := t.TempDir()
+	assetsDir := t.TempDir()
+
+	store := note.NewMemStore()
+	if _, err := store.Put(note.Entry{
+		ID: 4169,
+		Meta: note.Meta{
+			Title:     "Rails `class_names` helper",
+			Slug:      "rails-class-names",
+			Public:    true,
+			CreatedAt: time.Date(2023, 6, 22, 0, 0, 0, 0, time.UTC),
+		},
+		Body: "Hello.\n",
+	}); err != nil {
+		t.Fatalf("store.Put: %v", err)
+	}
+
+	cfg := testConfig(t, buildDir, assetsDir)
+	templateFS := os.DirFS("../../")
+	styleCSS := []byte("/* test */")
+	if err := Build(store, cfg, templateFS, styleCSS); err != nil {
+		t.Fatalf("Build() error: %v", err)
+	}
+
+	noteData, err := os.ReadFile(filepath.Join(buildDir, "20230622_4169", "rails-class-names", "index.html"))
+	if err != nil {
+		t.Fatalf("note page not found: %v", err)
+	}
+	noteHTML := string(noteData)
+	if strings.Contains(noteHTML, "`class_names`") {
+		t.Fatalf("note page should not contain backticked title, got: %s", noteHTML)
+	}
+	for _, want := range []string{
+		`<title>Rails class_names helper - Test Site</title>`,
+		`<meta name="twitter:title" content="Rails class_names helper" />`,
+		`<h1 class="!mb-2 !mt-8 !leading-tight"><a href="/20230622_4169/rails-class-names" class="no-underline">Rails class_names helper</a></h1>`,
+	} {
+		if !strings.Contains(noteHTML, want) {
+			t.Errorf("note page missing %q", want)
+		}
+	}
+
+	indexData, err := os.ReadFile(filepath.Join(buildDir, "index.html"))
+	if err != nil {
+		t.Fatalf("index page not found: %v", err)
+	}
+	indexHTML := string(indexData)
+	if strings.Contains(indexHTML, "`class_names`") {
+		t.Fatalf("index page should not contain backticked title, got: %s", indexHTML)
+	}
+	if !strings.Contains(indexHTML, `>Rails class_names helper</a>`) {
+		t.Error("index page missing plain title link")
+	}
+
+	feedData, err := os.ReadFile(filepath.Join(buildDir, "feed.xml"))
+	if err != nil {
+		t.Fatalf("feed not found: %v", err)
+	}
+	feedXML := string(feedData)
+	if strings.Contains(feedXML, "`class_names`") {
+		t.Fatalf("feed should not contain backticked title, got: %s", feedXML)
+	}
+	if !strings.Contains(feedXML, "<title>Rails class_names helper</title>") {
+		t.Error("feed missing plain title")
+	}
+}
+
 func TestBuildSkipsPrivateNote(t *testing.T) {
 	buildDir := t.TempDir()
 	assetsDir := t.TempDir()
@@ -332,6 +400,7 @@ func TestTitleOrUID(t *testing.T) {
 		want  string
 	}{
 		{name: "non-empty title wins", title: "Hello", uid: "20230130_42", want: "Hello"},
+		{name: "code-span markers are stripped", title: "Rails `class_names` helper", uid: "20230130_42", want: "Rails class_names helper"},
 		{name: "empty title falls back to uid", title: "", uid: "20230130_42", want: "20230130_42"},
 	}
 	for _, tt := range tests {

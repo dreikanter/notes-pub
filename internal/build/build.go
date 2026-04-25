@@ -388,12 +388,19 @@ func chooseSlug(e note.Entry) string {
 	return strconv.Itoa(e.ID)
 }
 
-// titleOrUID returns title when non-empty, otherwise uid as a fallback.
+// titleOrUID returns a display title when non-empty, otherwise uid as a fallback.
 func titleOrUID(title, uid string) string {
 	if title == "" {
 		return uid
 	}
-	return title
+	return displayTitle(title)
+}
+
+// displayTitle removes Markdown code-span delimiters from note titles. Titles are
+// used in plain-text contexts (page headings, links, meta tags, RSS titles) where
+// raw Markdown punctuation should not be shown.
+func displayTitle(title string) string {
+	return strings.ReplaceAll(title, "`", "")
 }
 
 func toNoteViewData(np page.NotePage) noteViewData {
