@@ -1,6 +1,7 @@
 package build
 
 import (
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"io"
@@ -31,17 +32,18 @@ type layoutData struct {
 
 // configData is the subset of config passed to templates.
 type configData struct {
-	SiteName     string
-	SiteDomain   string
-	SiteRootURL  string
-	SiteRootPath string
-	AuthorName   string
-	FeedURL      string
-	FeedPath     string
-	LicenseName  string
-	LicenseURL   string
-	StyleCSS     template.CSS
-	HighlightCSS template.CSS
+	SiteName       string
+	SiteDomain     string
+	SiteRootURL    string
+	SiteRootPath   string
+	AuthorName     string
+	FeedURL        string
+	FeedPath       string
+	LicenseName    string
+	LicenseURL     string
+	StyleCSS       template.CSS
+	HighlightCSS   template.CSS
+	FaviconDataURI template.URL
 }
 
 // pageData holds metadata for the layout template.
@@ -128,6 +130,10 @@ func cleanBuildDir(buildPath string) error {
 	return nil
 }
 
+func faviconDataURI(svg []byte) template.URL {
+	return template.URL("data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(svg))
+}
+
 // copyStaticFiles copies all files from staticPath to buildPath, preserving
 // directory structure. Returns nil if staticPath does not exist.
 func copyStaticFiles(staticPath, buildPath string) error {
@@ -164,8 +170,15 @@ func copyStaticFiles(staticPath, buildPath string) error {
 	})
 }
 
+// Assets contains the embedded assets used to render the static site.
+type Assets struct {
+	Templates  fs.FS
+	StyleCSS   []byte
+	FaviconSVG []byte
+}
+
 // Build generates the static site from notes.
-func Build(store note.Store, cfg config.Config, templateFS fs.FS, styleCSS []byte) error {
+func Build(store note.Store, cfg config.Config, assets Assets) error {
 	// 0. Clean build directory.
 	if err := cleanBuildDir(cfg.BuildPath); err != nil {
 		return err
@@ -213,29 +226,30 @@ func Build(store note.Store, cfg config.Config, templateFS fs.FS, styleCSS []byt
 	page.SortNotePages(notePages)
 
 	// 5. Load templates.
-	tmpl, err := template.New("").ParseFS(templateFS, "templates/*.html")
+	tmpl, err := template.New("").ParseFS(assets.Templates, "templates/*.html")
 	if err != nil {
 		return fmt.Errorf("parsing HTML templates: %w", err)
 	}
 
 	// Parse feed.xml with text/template (no HTML escaping).
-	feedTmpl, err := texttemplate.New("").ParseFS(templateFS, "templates/feed.xml")
+	feedTmpl, err := texttemplate.New("").ParseFS(assets.Templates, "templates/feed.xml")
 	if err != nil {
 		return fmt.Errorf("parsing feed template: %w", err)
 	}
 
 	cfgData := configData{
-		SiteName:     cfg.SiteName,
-		SiteDomain:   cfg.SiteDomain(),
-		SiteRootURL:  cfg.SiteRootURL,
-		SiteRootPath: cfg.SiteRootPath(),
-		AuthorName:   cfg.AuthorName,
-		FeedURL:      cfg.FeedURL(),
-		FeedPath:     cfg.FeedPath(),
-		LicenseName:  cfg.LicenseName,
-		LicenseURL:   cfg.LicenseURL,
-		StyleCSS:     template.CSS(styleCSS),
-		HighlightCSS: template.CSS(render.HighlightCSS()),
+		SiteName:       cfg.SiteName,
+		SiteDomain:     cfg.SiteDomain(),
+		SiteRootURL:    cfg.SiteRootURL,
+		SiteRootPath:   cfg.SiteRootPath(),
+		AuthorName:     cfg.AuthorName,
+		FeedURL:        cfg.FeedURL(),
+		FeedPath:       cfg.FeedPath(),
+		LicenseName:    cfg.LicenseName,
+		LicenseURL:     cfg.LicenseURL,
+		StyleCSS:       template.CSS(assets.StyleCSS),
+		HighlightCSS:   template.CSS(render.HighlightCSS()),
+		FaviconDataURI: faviconDataURI(assets.FaviconSVG),
 	}
 
 	// 6. Write note pages and redirects.

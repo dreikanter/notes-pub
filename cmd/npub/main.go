@@ -60,7 +60,7 @@ var buildCmd = &cobra.Command{
 
 		log.Printf("building site from %s to %s", cfg.NotesPath, cfg.BuildPath)
 		store := note.NewOSStore(cfg.NotesPath)
-		if err := build.Build(store, cfg, npub.TemplateFS, npub.StyleCSS); err != nil {
+		if err := build.Build(store, cfg, npub.Assets); err != nil {
 			return fmt.Errorf("build failed: %w", err)
 		}
 		log.Println("build complete")
