@@ -98,9 +98,12 @@ func TestBuildPublicNote(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := testConfig(t, buildDir, assetsDir)
-	templateFS := os.DirFS("../../")
-	styleCSS := []byte("/* test */")
-	require.NoError(t, Build(store, cfg, templateFS, styleCSS))
+	assets := Assets{
+		Templates:  os.DirFS("../../"),
+		StyleCSS:   []byte("/* test */"),
+		FaviconSVG: []byte("<svg></svg>"),
+	}
+	require.NoError(t, Build(store, cfg, assets))
 
 	notePath := filepath.Join(buildDir, "20230130_3961", "my-test-note", "index.html")
 	data, err := os.ReadFile(notePath)
@@ -131,6 +134,7 @@ func TestBuildPublicNote(t *testing.T) {
 	indexData, err := os.ReadFile(filepath.Join(buildDir, "index.html"))
 	require.NoError(t, err)
 	assert.Contains(t, string(indexData), "/* test */")
+	assert.Contains(t, string(indexData), `href="data:image/svg&#43;xml;base64,PHN2Zz48L3N2Zz4="`)
 	assert.NotContains(t, string(indexData), `href="/style.css"`)
 }
 
@@ -152,9 +156,12 @@ func TestBuildSkipsPrivateNote(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := testConfig(t, buildDir, assetsDir)
-	templateFS := os.DirFS("../../")
-	styleCSS := []byte("/* test */")
-	require.NoError(t, Build(store, cfg, templateFS, styleCSS))
+	assets := Assets{
+		Templates:  os.DirFS("../../"),
+		StyleCSS:   []byte("/* test */"),
+		FaviconSVG: []byte("<svg></svg>"),
+	}
+	require.NoError(t, Build(store, cfg, assets))
 
 	assert.NoDirExists(t, filepath.Join(buildDir, "20230130_3961"))
 
@@ -194,9 +201,12 @@ func TestBuildNoteLinkResolution(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := testConfig(t, buildDir, assetsDir)
-	templateFS := os.DirFS("../../")
-	styleCSS := []byte("/* test */")
-	require.NoError(t, Build(store, cfg, templateFS, styleCSS))
+	assets := Assets{
+		Templates:  os.DirFS("../../"),
+		StyleCSS:   []byte("/* test */"),
+		FaviconSVG: []byte("<svg></svg>"),
+	}
+	require.NoError(t, Build(store, cfg, assets))
 
 	data, err := os.ReadFile(filepath.Join(buildDir, "20230130_3961", "first-note", "index.html"))
 	require.NoError(t, err)
