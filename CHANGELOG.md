@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.7] - 2026-04-30
+
+### Fixed
+
+- Path inputs now expand `$VAR` and `${VAR}` uniformly alongside `~/`, regardless of source. Previously env-var expansion was only applied to `--config`, `--dir`, and the `init [dir]` positional, while `--path` and the YAML path fields (`notes_path`, `assets_path`, `static_path`, `build_path`) silently passed `$VAR` through. Factored a single `config.ExpandPath` helper and call it at every boundary. ([#67])
+
+[#67]: https://github.com/dreikanter/npub/pull/67
+
 ## [0.2.6] - 2026-04-30
 
 ### Fixed
