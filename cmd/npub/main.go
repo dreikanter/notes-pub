@@ -28,21 +28,9 @@ func main() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "npub",
-	Short: "Build a static site from a local notes store",
-	Long: `npub builds a static site from a directory of Markdown notes.
-
-Configuration is layered: command-line flags (and positional arguments) override
-values from the YAML config file.
-
-Config file discovery order:
-  1. --config flag (if set)
-  2. npub.yml inside $NOTES_PATH (or the --path value, for build)
-  3. npub.yml in the current directory
-
-NOTES_PATH does double duty:
-  1. Source for notes_path when neither --path nor the YAML sets it.
-  2. Hint location for finding npub.yml during config discovery.`,
+	Use:          "npub",
+	Short:        "Build a static site from a local notes store",
+	Long:         `npub builds a static site from a directory of Markdown notes. Run "npub config" to see how flags, environment, and YAML are resolved.`,
 	SilenceUsage: true,
 }
 
@@ -111,6 +99,15 @@ variables, and built-in defaults.
 Accepts the same overrides as build, so you can preview how a build would see
 its configuration without running it. When required fields are missing, the
 partial configuration is still printed and the command exits with an error.
+
+Config file discovery order:
+  1. --config flag (if set)
+  2. npub.yml inside $NOTES_PATH (or the --path value, for build)
+  3. npub.yml in the current directory
+
+NOTES_PATH does double duty:
+  1. Source for notes_path when neither --path nor the YAML sets it.
+  2. Hint location for finding npub.yml during config discovery.
 
 Examples:
   # Show the resolved configuration
