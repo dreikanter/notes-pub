@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Share config-discovery between `build` and `serve` via `loadConfigOpt(cmd, cfgPath, optional bool)`. `build` calls it strict; `serve` calls it optional and gets a `BuildPath: "./dist"` fallback when config is missing and `--config` wasn't set explicitly. Guard the internal `--path` lookup with `Flags().Lookup("path") != nil` so future subcommands without that flag don't silently get an empty notes path. ([#69])
+- Share config-discovery between `build` and `serve`. `build` calls `loadConfig` (strict); `serve` calls `loadConfigOpt`, a thin wrapper that falls back to `BuildPath: "./dist"` when the config is missing/invalid and `--config` wasn't set explicitly. Guard the internal `--path` lookup with `Flags().Lookup("path") != nil` so future subcommands without that flag don't silently get an empty notes path. ([#69])
 
 [#69]: https://github.com/dreikanter/npub/pull/69
 

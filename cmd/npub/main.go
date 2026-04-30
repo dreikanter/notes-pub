@@ -53,7 +53,7 @@ var buildCmd = &cobra.Command{
 	Short: "Build the static site",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfgPath, _ := cmd.Flags().GetString("config")
-		cfg, err := loadConfigOpt(cmd, cfgPath, false)
+		cfg, err := loadConfig(cmd, cfgPath)
 		if err != nil {
 			return err
 		}
@@ -81,7 +81,7 @@ var serveCmd = &cobra.Command{
 		explicitDir := cmd.Flags().Changed("dir")
 		if !explicitDir {
 			cfgPath, _ := cmd.Flags().GetString("config")
-			cfg, err := loadConfigOpt(cmd, cfgPath, true)
+			cfg, err := loadConfigOpt(cmd, cfgPath)
 			if err != nil {
 				return err
 			}
@@ -173,7 +173,7 @@ func resolveConfigPath(flagValue, notesPath string) string {
 	return config.DefaultConfigFile
 }
 
-func loadConfigOpt(cmd *cobra.Command, cfgPath string, optional bool) (config.Config, error) {
+func loadConfig(cmd *cobra.Command, cfgPath string) (config.Config, error) {
 	// Resolve notes path here too (not only in config.Load) because config
 	// discovery needs it before the yaml is read.
 	var notesPath string
@@ -193,8 +193,15 @@ func loadConfigOpt(cmd *cobra.Command, cfgPath string, optional bool) (config.Co
 		}
 	}
 
-	cfg, err := config.Load(cfgPath, flagOverrides)
-	if err != nil && optional && !cmd.Flags().Changed("config") {
+	return config.Load(cfgPath, flagOverrides)
+}
+
+// loadConfigOpt loads config like loadConfig but treats a missing/invalid
+// config as non-fatal when --config wasn't set explicitly, returning a
+// minimal default instead.
+func loadConfigOpt(cmd *cobra.Command, cfgPath string) (config.Config, error) {
+	cfg, err := loadConfig(cmd, cfgPath)
+	if err != nil && !cmd.Flags().Changed("config") {
 		return config.Config{BuildPath: "./dist"}, nil
 	}
 	return cfg, err
