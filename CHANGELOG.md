@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3] - 2026-04-30
+
+### Changed
+
+- Rename `npub serve --dir` to `--path`. The flag now defaults to `$NOTES_PATH` and falls back to the current directory; `serve` no longer reads the config or accepts `--config`/`--notes`.
+- Rename `npub build --notes` to `--path`, with help text `notes store path (default: NOTES_PATH)`.
+
 ## [0.2.2] - 2026-04-30
 
 ### Fixed
