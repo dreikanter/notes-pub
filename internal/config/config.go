@@ -76,12 +76,12 @@ func (c Config) FeedPath() string {
 func Load(yamlPath string, flagOverrides map[string]string) (Config, error) {
 	data, err := os.ReadFile(yamlPath)
 	if err != nil {
-		return Config{}, fmt.Errorf("cannot read config: %w", err)
+		return Config{}, fmt.Errorf("cannot read config %q: %w", yamlPath, err)
 	}
 
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return Config{}, fmt.Errorf("cannot parse config: %w", err)
+		return Config{}, fmt.Errorf("cannot parse config %q: %w", yamlPath, err)
 	}
 
 	flagMap := map[string]*string{
@@ -125,14 +125,18 @@ func Load(yamlPath string, flagOverrides map[string]string) (Config, error) {
 		cfg.LicenseURL = "https://creativecommons.org/licenses/by/4.0/"
 	}
 
+	var missing []string
 	if cfg.SiteRootURL == "" {
-		return Config{}, fmt.Errorf("site_root_url is required")
+		missing = append(missing, "site_root_url")
 	}
 	if cfg.SiteName == "" {
-		return Config{}, fmt.Errorf("site_name is required")
+		missing = append(missing, "site_name")
 	}
 	if cfg.AuthorName == "" {
-		return Config{}, fmt.Errorf("author_name is required")
+		missing = append(missing, "author_name")
+	}
+	if len(missing) > 0 {
+		return Config{}, fmt.Errorf("missing required fields: %s", strings.Join(missing, ", "))
 	}
 
 	return cfg, nil
