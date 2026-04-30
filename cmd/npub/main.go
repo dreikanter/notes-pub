@@ -20,14 +20,14 @@ var Version = "dev"
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "npub",
-	Short: "Build a static site from a local notes store",
+	Use:          "npub",
+	Short:        "Build a static site from a local notes store",
+	SilenceUsage: true,
 }
 
 var initCmd = &cobra.Command{
@@ -57,6 +57,9 @@ var buildCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if err := validateNotesPath(cfg.NotesPath); err != nil {
+			return err
+		}
 
 		log.Printf("building site from %s to %s", cfg.NotesPath, cfg.BuildPath)
 		store := note.NewOSStore(cfg.NotesPath)
@@ -72,19 +75,32 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Serve the built site locally",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		path, _ := cmd.Flags().GetString("path")
 		port, _ := cmd.Flags().GetString("port")
-
+		path, _ := cmd.Flags().GetString("path")
 		if path == "" {
 			path = os.Getenv("NOTES_PATH")
 		}
-		if path == "" {
-			path = "."
+		if err := validateNotesPath(path); err != nil {
+			return err
 		}
 		addr := ":" + port
 		log.Printf("serving %s on http://localhost%s", path, addr)
 		return http.ListenAndServe(addr, http.FileServer(http.Dir(path)))
 	},
+}
+
+func validateNotesPath(path string) error {
+	if path == "" {
+		return fmt.Errorf("notes path is not set: pass --path or set NOTES_PATH")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("invalid notes path %q: %w", path, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("invalid notes path %q: not a directory", path)
+	}
+	return nil
 }
 
 func initConfig(path string) (string, error) {
@@ -181,7 +197,7 @@ func init() {
 	rootCmd.Version = Version
 
 	buildCmd.Flags().String("config", "", "config file path (default: npub.yml)")
-	buildCmd.Flags().String("path", "", "notes store path (default: NOTES_PATH)")
+	buildCmd.Flags().String("path", "", "notes path (default: NOTES_PATH)")
 	buildCmd.Flags().String("assets", "", "image assets path")
 	buildCmd.Flags().String("out", "", "output directory (default: ./dist)")
 	buildCmd.Flags().String("static", "", "static files directory")
@@ -191,7 +207,7 @@ func init() {
 	buildCmd.Flags().String("license-name", "", "license name (default: CC BY 4.0)")
 	buildCmd.Flags().String("license-url", "", "license URL (default: https://creativecommons.org/licenses/by/4.0/)")
 
-	serveCmd.Flags().String("path", "", "notes root path or file (default: $NOTES_PATH, .)")
+	serveCmd.Flags().String("path", "", "notes path (default: NOTES_PATH)")
 	serveCmd.Flags().String("port", "4000", "port to listen on")
 
 	rootCmd.AddCommand(initCmd)
