@@ -79,7 +79,8 @@ var serveCmd = &cobra.Command{
 		host, _ := cmd.Flags().GetString("host")
 		port, _ := cmd.Flags().GetString("port")
 		dir, _ := cmd.Flags().GetString("dir")
-		if dir == "" {
+		explicitDir := cmd.Flags().Changed("dir")
+		if !explicitDir {
 			cfgPath, _ := cmd.Flags().GetString("config")
 			explicitConfig := cmd.Flags().Changed("config")
 			cfgPath = resolveConfigPath(cfgPath, os.Getenv("NOTES_PATH"))
@@ -96,6 +97,9 @@ var serveCmd = &cobra.Command{
 		dir = expandHome(os.ExpandEnv(dir))
 		info, err := os.Stat(dir)
 		if err != nil {
+			if explicitDir {
+				return fmt.Errorf("cannot serve %q: %w", dir, err)
+			}
 			return fmt.Errorf("cannot serve %q: %w (run npub build first)", dir, err)
 		}
 		if !info.IsDir() {
@@ -134,31 +138,31 @@ func initConfig(path string) (string, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return "", fmt.Errorf("cannot inspect %s: %w", path, err)
+			return "", err
 		}
 		if err := os.MkdirAll(path, 0o755); err != nil {
-			return "", fmt.Errorf("cannot create directory %s: %w", path, err)
+			return "", fmt.Errorf("cannot create directory %q: %w", path, err)
 		}
 	} else if !info.IsDir() {
-		return "", fmt.Errorf("%s is not a directory", path)
+		return "", fmt.Errorf("%q is not a directory", path)
 	}
 
 	cfgPath := filepath.Join(path, config.DefaultConfigFile)
 	file, err := os.OpenFile(cfgPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		if os.IsExist(err) {
-			return "", fmt.Errorf("config file already exists: %s", cfgPath)
+			return "", fmt.Errorf("config file already exists: %q", cfgPath)
 		}
-		return "", fmt.Errorf("cannot create config file %s: %w", cfgPath, err)
+		return "", fmt.Errorf("cannot create config file %q: %w", cfgPath, err)
 	}
 	if _, err := file.Write(npub.SampleConfig); err != nil {
 		_ = file.Close()
 		_ = os.Remove(cfgPath)
-		return "", fmt.Errorf("cannot write config file %s: %w", cfgPath, err)
+		return "", fmt.Errorf("cannot write config file %q: %w", cfgPath, err)
 	}
 	if err := file.Close(); err != nil {
 		_ = os.Remove(cfgPath)
-		return "", fmt.Errorf("cannot write config file %s: %w", cfgPath, err)
+		return "", fmt.Errorf("cannot write config file %q: %w", cfgPath, err)
 	}
 	return cfgPath, nil
 }
