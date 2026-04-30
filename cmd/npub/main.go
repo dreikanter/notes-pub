@@ -75,6 +75,12 @@ var serveCmd = &cobra.Command{
 		dir, _ := cmd.Flags().GetString("dir")
 		port, _ := cmd.Flags().GetString("port")
 
+		if !cmd.Flags().Changed("dir") {
+			cfgPath, _ := cmd.Flags().GetString("config")
+			if cfg, err := loadConfig(cmd, cfgPath); err == nil && cfg.BuildPath != "" {
+				dir = cfg.BuildPath
+			}
+		}
 		if dir == "" {
 			dir = "./dist"
 		}
@@ -188,8 +194,10 @@ func init() {
 	buildCmd.Flags().String("license-name", "", "license name (default: CC BY 4.0)")
 	buildCmd.Flags().String("license-url", "", "license URL (default: https://creativecommons.org/licenses/by/4.0/)")
 
-	serveCmd.Flags().String("dir", "./dist", "directory to serve")
+	serveCmd.Flags().String("dir", "./dist", "directory to serve (defaults to build_path from config)")
 	serveCmd.Flags().String("port", "4000", "port to listen on")
+	serveCmd.Flags().String("config", "", "config file path (default: npub.yml)")
+	serveCmd.Flags().String("notes", "", "notes store path")
 
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(buildCmd)
