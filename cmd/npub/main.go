@@ -72,26 +72,18 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Serve the built site locally",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		dir, _ := cmd.Flags().GetString("dir")
+		path, _ := cmd.Flags().GetString("path")
 		port, _ := cmd.Flags().GetString("port")
 
-		if !cmd.Flags().Changed("dir") {
-			cfgPath, _ := cmd.Flags().GetString("config")
-			explicitConfig := cmd.Flags().Changed("config") || os.Getenv("NPUB_CONFIG") != ""
-			cfg, err := loadConfig(cmd, cfgPath)
-			switch {
-			case err != nil && explicitConfig:
-				return err
-			case err == nil && cfg.BuildPath != "":
-				dir = cfg.BuildPath
-			}
+		if path == "" {
+			path = os.Getenv("NOTES_PATH")
 		}
-		if dir == "" {
-			dir = "./dist"
+		if path == "" {
+			path = "."
 		}
 		addr := ":" + port
-		log.Printf("serving %s on http://localhost%s", dir, addr)
-		return http.ListenAndServe(addr, http.FileServer(http.Dir(dir)))
+		log.Printf("serving %s on http://localhost%s", path, addr)
+		return http.ListenAndServe(addr, http.FileServer(http.Dir(path)))
 	},
 }
 
@@ -199,10 +191,8 @@ func init() {
 	buildCmd.Flags().String("license-name", "", "license name (default: CC BY 4.0)")
 	buildCmd.Flags().String("license-url", "", "license URL (default: https://creativecommons.org/licenses/by/4.0/)")
 
-	serveCmd.Flags().String("dir", "./dist", "directory to serve (defaults to build_path from config)")
+	serveCmd.Flags().String("path", "", "notes root path or file (default: $NOTES_PATH, .)")
 	serveCmd.Flags().String("port", "4000", "port to listen on")
-	serveCmd.Flags().String("config", "", "config file path (default: npub.yml)")
-	serveCmd.Flags().String("notes", "", "notes store path")
 
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(buildCmd)
