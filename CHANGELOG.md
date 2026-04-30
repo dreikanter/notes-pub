@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.9] - 2026-04-30
+
+### Changed
+
+- Share config-discovery between `build` and `serve`. `build` calls `loadConfig` (strict); `serve` calls `loadConfigOpt`, a thin wrapper that falls back to `BuildPath: "./dist"` when the config is missing/invalid and `--config` wasn't set explicitly. Guard the internal `--path` lookup with `Flags().Lookup("path") != nil` so future subcommands without that flag don't silently get an empty notes path. ([#69])
+
+[#69]: https://github.com/dreikanter/npub/pull/69
+
 ## [0.2.8] - 2026-04-30
 
 ### Changed

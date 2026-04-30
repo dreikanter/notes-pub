@@ -81,17 +81,11 @@ var serveCmd = &cobra.Command{
 		explicitDir := cmd.Flags().Changed("dir")
 		if !explicitDir {
 			cfgPath, _ := cmd.Flags().GetString("config")
-			explicitConfig := cmd.Flags().Changed("config")
-			cfgPath = resolveConfigPath(cfgPath, os.Getenv("NOTES_PATH"))
-			cfg, err := config.Load(cfgPath, nil)
-			switch {
-			case err != nil && explicitConfig:
+			cfg, err := loadConfigOpt(cmd, cfgPath)
+			if err != nil {
 				return err
-			case err == nil:
-				dir = cfg.BuildPath
-			default:
-				dir = "./dist"
 			}
+			dir = cfg.BuildPath
 		}
 		dir = config.ExpandPath(dir)
 		info, err := os.Stat(dir)
@@ -182,7 +176,10 @@ func resolveConfigPath(flagValue, notesPath string) string {
 func loadConfig(cmd *cobra.Command, cfgPath string) (config.Config, error) {
 	// Resolve notes path here too (not only in config.Load) because config
 	// discovery needs it before the yaml is read.
-	notesPath, _ := cmd.Flags().GetString("path")
+	var notesPath string
+	if cmd.Flags().Lookup("path") != nil {
+		notesPath, _ = cmd.Flags().GetString("path")
+	}
 	if notesPath == "" {
 		notesPath = os.Getenv("NOTES_PATH")
 	}
@@ -191,13 +188,23 @@ func loadConfig(cmd *cobra.Command, cfgPath string) (config.Config, error) {
 	flagNames := []string{"path", "assets", "out", "static", "url", "site-name", "author", "license-name", "license-url"}
 	flagOverrides := make(map[string]string)
 	for _, name := range flagNames {
-		if cmd.Flags().Changed(name) {
-			v, _ := cmd.Flags().GetString(name)
-			flagOverrides[name] = v
+		if f := cmd.Flags().Lookup(name); f != nil && f.Changed {
+			flagOverrides[name] = f.Value.String()
 		}
 	}
 
 	return config.Load(cfgPath, flagOverrides)
+}
+
+// loadConfigOpt loads config like loadConfig but treats a missing/invalid
+// config as non-fatal when --config wasn't set explicitly, returning a
+// minimal default instead.
+func loadConfigOpt(cmd *cobra.Command, cfgPath string) (config.Config, error) {
+	cfg, err := loadConfig(cmd, cfgPath)
+	if err != nil && !cmd.Flags().Changed("config") {
+		return config.Config{BuildPath: "./dist"}, nil
+	}
+	return cfg, err
 }
 
 func init() {
