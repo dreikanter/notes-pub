@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.3] - 2026-04-30
+
+### Changed
+
+- Rename `--dir`/`--notes` to `--path` on `npub serve` and `npub build`. Both flags now share the help text `notes path (default: NOTES_PATH)` and resolve from `--path` then `$NOTES_PATH`.
+- `npub serve` no longer reads the config or accepts `--config`/`--notes`.
+- Suppress cobra's usage dump on command errors so error messages stand alone.
+
+### Fixed
+
+- `npub serve` and `npub build` now fail fast with explicit messages when the notes path is unset, missing, inaccessible, or not a directory, instead of failing later with an opaque error.
+
 ## [0.2.2] - 2026-04-30
 
 ### Fixed

@@ -20,14 +20,14 @@ var Version = "dev"
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "npub",
-	Short: "Build a static site from a local notes store",
+	Use:          "npub",
+	Short:        "Build a static site from a local notes store",
+	SilenceUsage: true,
 }
 
 var initCmd = &cobra.Command{
@@ -57,6 +57,9 @@ var buildCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		if err := validateNotesPath(cfg.NotesPath); err != nil {
+			return err
+		}
 
 		log.Printf("building site from %s to %s", cfg.NotesPath, cfg.BuildPath)
 		store := note.NewOSStore(cfg.NotesPath)
@@ -72,27 +75,32 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Serve the built site locally",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		dir, _ := cmd.Flags().GetString("dir")
 		port, _ := cmd.Flags().GetString("port")
-
-		if !cmd.Flags().Changed("dir") {
-			cfgPath, _ := cmd.Flags().GetString("config")
-			explicitConfig := cmd.Flags().Changed("config") || os.Getenv("NPUB_CONFIG") != ""
-			cfg, err := loadConfig(cmd, cfgPath)
-			switch {
-			case err != nil && explicitConfig:
-				return err
-			case err == nil && cfg.BuildPath != "":
-				dir = cfg.BuildPath
-			}
+		path, _ := cmd.Flags().GetString("path")
+		if path == "" {
+			path = os.Getenv("NOTES_PATH")
 		}
-		if dir == "" {
-			dir = "./dist"
+		if err := validateNotesPath(path); err != nil {
+			return err
 		}
 		addr := ":" + port
-		log.Printf("serving %s on http://localhost%s", dir, addr)
-		return http.ListenAndServe(addr, http.FileServer(http.Dir(dir)))
+		log.Printf("serving %s on http://localhost%s", path, addr)
+		return http.ListenAndServe(addr, http.FileServer(http.Dir(path)))
 	},
+}
+
+func validateNotesPath(path string) error {
+	if path == "" {
+		return fmt.Errorf("notes path is not set: pass --path or set NOTES_PATH")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("invalid notes path %q: %w", path, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("invalid notes path %q: not a directory", path)
+	}
+	return nil
 }
 
 func initConfig(path string) (string, error) {
@@ -153,13 +161,13 @@ func resolveConfigPath(flagValue, envValue, notesPath string) string {
 func loadConfig(cmd *cobra.Command, cfgPath string) (config.Config, error) {
 	// Resolve notes path here too (not only in config.Load) because config
 	// discovery needs it before the yaml is read.
-	notesPath, _ := cmd.Flags().GetString("notes")
+	notesPath, _ := cmd.Flags().GetString("path")
 	if notesPath == "" {
 		notesPath = os.Getenv("NOTES_PATH")
 	}
 	cfgPath = resolveConfigPath(cfgPath, os.Getenv("NPUB_CONFIG"), notesPath)
 
-	flagNames := []string{"notes", "assets", "out", "static", "url", "site-name", "author", "license-name", "license-url"}
+	flagNames := []string{"path", "assets", "out", "static", "url", "site-name", "author", "license-name", "license-url"}
 	flagOverrides := make(map[string]string)
 	for _, name := range flagNames {
 		if cmd.Flags().Changed(name) {
@@ -189,7 +197,7 @@ func init() {
 	rootCmd.Version = Version
 
 	buildCmd.Flags().String("config", "", "config file path (default: npub.yml)")
-	buildCmd.Flags().String("notes", "", "notes store path")
+	buildCmd.Flags().String("path", "", "notes path (default: NOTES_PATH)")
 	buildCmd.Flags().String("assets", "", "image assets path")
 	buildCmd.Flags().String("out", "", "output directory (default: ./dist)")
 	buildCmd.Flags().String("static", "", "static files directory")
@@ -199,10 +207,8 @@ func init() {
 	buildCmd.Flags().String("license-name", "", "license name (default: CC BY 4.0)")
 	buildCmd.Flags().String("license-url", "", "license URL (default: https://creativecommons.org/licenses/by/4.0/)")
 
-	serveCmd.Flags().String("dir", "./dist", "directory to serve (defaults to build_path from config)")
+	serveCmd.Flags().String("path", "", "notes path (default: NOTES_PATH)")
 	serveCmd.Flags().String("port", "4000", "port to listen on")
-	serveCmd.Flags().String("config", "", "config file path (default: npub.yml)")
-	serveCmd.Flags().String("notes", "", "notes store path")
 
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(buildCmd)
