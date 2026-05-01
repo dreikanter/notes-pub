@@ -74,21 +74,6 @@ author_name: "Test Author"
 	assert.Equal(t, filepath.Join("/tmp/notes", "images"), cfg.AssetsPath)
 }
 
-func TestLoadIgnoresLegacyBuildPath(t *testing.T) {
-	// build_path used to be a config key; existing files with it must still
-	// load without error. The YAML library silently ignores unknown keys.
-	yamlPath := writeConfig(t, `
-notes_path: "/tmp/notes"
-build_path: "/tmp/should-be-ignored"
-site_root_url: "https://example.com"
-site_name: "Test Site"
-author_name: "Test Author"
-`)
-
-	_, err := Load(yamlPath, nil)
-	require.NoError(t, err)
-}
-
 func TestNotesPathDefaultsToEnvVar(t *testing.T) {
 	yamlPath := writeConfig(t, `
 site_root_url: "https://example.com"

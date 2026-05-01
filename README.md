@@ -53,10 +53,10 @@ All values can be overridden with CLI flags:
 | `cache_path` | | `~/.cache/npub/<repo>` | |
 
 The build output directory is not a config option. `npub build` writes to
-`<cache_path>/build` when `deploy_repo` is set (where `cache_path` defaults
-to `~/.cache/npub/<repo>`), otherwise to `./dist`. Pass `--out <dir>` to
-`npub build` to override. `build` never talks to the deploy_repo remote —
-all git operations happen in `deploy`.
+`<cache_path>/build` (where `cache_path` defaults to `~/.cache/npub/<repo>`).
+Pass `--out <dir>` to override. Either `deploy_repo` or `--out` must be set;
+there is no implicit `./dist`. `build` never talks to the deploy_repo
+remote — all git operations happen in `deploy`.
 
 Priority: CLI flags > YAML config.
 
@@ -112,7 +112,7 @@ Serve locally:
 npub serve
 ```
 
-The `serve` command starts a local HTTP server on `localhost:4000` (override with `--host` and `--port`). It serves the build directory (`~/.cache/npub/<repo>/build` if `deploy_repo` is set, otherwise `./dist`). Override with `--dir`.
+The `serve` command starts a local HTTP server on `localhost:4000` (override with `--host` and `--port`). It serves `<cache_path>/build` (where `cache_path` defaults to `~/.cache/npub/<repo>`). Pass `--dir <path>` to point it at a different directory; either `deploy_repo` or `--dir` must be set.
 
 Deploy to a git remote:
 

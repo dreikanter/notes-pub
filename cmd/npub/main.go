@@ -64,7 +64,8 @@ Output directory resolution:
   --out <dir>              explicit override
   deploy_repo (in YAML)    <cache_path>/build (cache_path defaults to
                            ~/.cache/npub/<repo>)
-  fallback                 ./dist
+
+One of the two must be configured.
 
 build runs offline: it never talks to the deploy_repo remote. All git
 operations happen in deploy.`,
@@ -194,8 +195,8 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Serve the built site locally",
 	Long: `Serve the built site over HTTP. Without --dir, uses <cache_path>/build
-when deploy_repo is set (cache_path defaults to ~/.cache/npub/<repo>),
-otherwise ./dist.`,
+where cache_path defaults to ~/.cache/npub/<repo>; deploy_repo must be
+set in the config for the implicit path to resolve.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		host, _ := cmd.Flags().GetString("host")
 		port, _ := cmd.Flags().GetInt("port")
@@ -268,24 +269,27 @@ func resolveCacheDir(cfg config.Config) (string, error) {
 	return deploy.DefaultCacheDir(cfg.DeployRepo)
 }
 
-// resolveBuildPath returns the directory the build will write to.
-//
-// Precedence:
-//  1. --out flag (explicit override)
-//  2. <cache_dir>/build when deploy_repo is set
-//  3. ./dist
+// resolveBuildPath returns the directory the build will write to or the
+// directory serve will read from. It honors a caller-provided --out flag
+// first, then falls back to <cache_path>/build when deploy_repo is set.
+// If neither is configured, the caller gets a clear error rather than a
+// surprise relative path.
 func resolveBuildPath(cmd *cobra.Command, cfg config.Config) (string, error) {
 	if f := cmd.Flags().Lookup("out"); f != nil && f.Changed {
 		return config.ExpandPath(f.Value.String()), nil
 	}
-	if strings.TrimSpace(cfg.DeployRepo) != "" {
-		cache, err := resolveCacheDir(cfg)
-		if err != nil {
-			return "", err
+	if strings.TrimSpace(cfg.DeployRepo) == "" {
+		flag := "--out"
+		if cmd.Name() == "serve" {
+			flag = "--dir"
 		}
-		return deploy.BuildDir(cache), nil
+		return "", fmt.Errorf("deploy_repo is not set; configure it in %s or pass %s", config.DefaultConfigFile, flag)
 	}
-	return "./dist", nil
+	cache, err := resolveCacheDir(cfg)
+	if err != nil {
+		return "", err
+	}
+	return deploy.BuildDir(cache), nil
 }
 
 func initConfig(path string) (string, error) {
@@ -386,11 +390,11 @@ func init() {
 
 	addConfigFlags(buildCmd)
 	addConfigFlags(configCmd)
-	buildCmd.Flags().String("out", "", "output directory (overrides deploy_repo cache; defaults to <cache_path>/build, or ./dist)")
+	buildCmd.Flags().String("out", "", "output directory (overrides the deploy_repo cache build path)")
 	configCmd.Flags().String("out", "", "preview build path override")
 	deployCmd.Flags().Bool("dry-run", false, "commit locally but skip git push")
 
-	serveCmd.Flags().String("dir", "", "directory to serve (default: deploy_repo cache or ./dist)")
+	serveCmd.Flags().String("dir", "", "directory to serve (defaults to the deploy_repo cache build path)")
 	serveCmd.Flags().String("host", "localhost", "interface to bind")
 	serveCmd.Flags().Int("port", 4000, "port to listen on")
 
