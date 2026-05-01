@@ -32,6 +32,6 @@
 
 # Git repository that hosts the published site. When set, `npub build`
 # writes the site to ~/.cache/npub/<repo>/build (offline) and `npub deploy`
-# clones the remote into ~/.cache/npub/<repo>/repo, mirrors build/ into it,
-# commits, and pushes.
+# bare-clones the remote into ~/.cache/npub/<repo>/git and commits the
+# build directory's contents directly via git's --git-dir + --work-tree.
 # deploy_repo: ""

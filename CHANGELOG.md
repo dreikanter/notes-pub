@@ -4,7 +4,7 @@
 
 ### Added
 
-- `npub deploy` builds and publishes the site to a git remote configured via the new `deploy_repo` YAML key. `npub build` writes the rendered site to `~/.cache/npub/<repo>/build` (offline; no git or network involvement); `npub deploy` clones `deploy_repo` into `~/.cache/npub/<repo>/repo` on first use, hard-resets it to the remote default branch on subsequent runs, mirrors `build/` into it (preserving `repo/.git`), commits the diff, and pushes with `git push -u origin HEAD`. Pass `--dry-run` to commit locally without pushing. Errors at every step (missing `git`, malformed `deploy_repo`, clone failure, mismatched origin URL, missing build output, push rejection) surface git's own message rather than a bare exit code. ([#78])
+- `npub deploy` publishes the site to a git remote configured via the new `deploy_repo` YAML key. `npub build` writes the rendered site to `~/.cache/npub/<repo>/build` (offline; no git or network involvement); `npub deploy` keeps a bare clone of `deploy_repo` at `~/.cache/npub/<repo>/git` and uses `build/` as a temporary work-tree via `--git-dir` + `--work-tree`, so a single `git add -A` reconciles changed, added, and deleted files against origin's last published state. No second copy of the site is held on disk. Pass `--dry-run` to commit locally without pushing. Errors at every step (missing `git`, malformed `deploy_repo`, clone failure, mismatched origin URL, missing build output, push rejection) surface git's own message rather than a bare exit code. ([#78])
 
 ### Changed
 

@@ -1,5 +1,8 @@
-// Package deploy manages a local working copy of the deploy target git
-// repository, where the built site is committed and pushed.
+// Package deploy publishes the built site to a git remote. It maintains a
+// bare clone of deploy_repo at ~/.cache/npub/<repo>/git and uses the build
+// output at ~/.cache/npub/<repo>/build as a temporary work-tree (via git's
+// --git-dir and --work-tree options) when committing. This avoids copying
+// the site into a separate working copy.
 package deploy
 
 import (
@@ -23,7 +26,7 @@ func CacheRoot() (string, error) {
 }
 
 // CacheDir returns the per-repo cache parent for repoURL,
-// ~/.cache/npub/<repo>. Both BuildDir and RepoDir live under it.
+// ~/.cache/npub/<repo>. BuildDir and GitDir live under it.
 func CacheDir(repoURL string) (string, error) {
 	if strings.TrimSpace(repoURL) == "" {
 		return "", errors.New("deploy_repo is empty")
@@ -39,9 +42,9 @@ func CacheDir(repoURL string) (string, error) {
 	return filepath.Join(root, slug), nil
 }
 
-// BuildDir returns the directory where `npub build` writes the rendered site
-// for repoURL: ~/.cache/npub/<repo>/build. It is a plain directory, not a
-// git working copy.
+// BuildDir returns the directory where `npub build` writes the rendered
+// site for repoURL: ~/.cache/npub/<repo>/build. It is a plain directory,
+// never a git working copy.
 func BuildDir(repoURL string) (string, error) {
 	dir, err := CacheDir(repoURL)
 	if err != nil {
@@ -50,14 +53,15 @@ func BuildDir(repoURL string) (string, error) {
 	return filepath.Join(dir, "build"), nil
 }
 
-// RepoDir returns the directory where `npub deploy` keeps the git working
-// copy of repoURL: ~/.cache/npub/<repo>/repo.
-func RepoDir(repoURL string) (string, error) {
+// GitDir returns the bare git directory for repoURL:
+// ~/.cache/npub/<repo>/git. `npub deploy` clones deploy_repo here on first
+// use and treats BuildDir as a temporary work-tree when committing.
+func GitDir(repoURL string) (string, error) {
 	dir, err := CacheDir(repoURL)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, "repo"), nil
+	return filepath.Join(dir, "git"), nil
 }
 
 // RepoSlug derives a directory name from a git repository URL. It strips a
@@ -91,231 +95,138 @@ func (o Options) writers() (io.Writer, io.Writer) {
 	return out, errw
 }
 
-// Prepare ensures workDir contains an up-to-date checkout of repoURL. If
-// workDir does not exist, repoURL is cloned into it. Otherwise the remote
-// is verified, fetched, and the working copy is hard-reset to the remote
-// default branch, discarding local commits and untracked files so a
-// subsequent Sync starts from a clean mirror of origin.
-func Prepare(repoURL, workDir string, opt Options) error {
+// Prepare ensures gitDir is a clone of repoURL and resets HEAD + index to
+// origin's default branch tip without touching buildDir's contents. On
+// first use it runs `git clone --bare`; on subsequent runs it fetches and
+// resets. After Prepare returns, the bare repository's index reflects
+// origin's last published state, so a subsequent `git add -A` against
+// buildDir stages exactly the diff that needs to be committed.
+func Prepare(repoURL, gitDir, buildDir string, opt Options) error {
 	if err := requireGit(); err != nil {
 		return err
 	}
 	stdout, stderr := opt.writers()
-	info, err := os.Stat(workDir)
+
+	info, err := os.Stat(buildDir)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("checking %s: %w", workDir, err)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("build directory %s does not exist; run `npub build` first", buildDir)
 		}
-		if err := os.MkdirAll(filepath.Dir(workDir), 0o755); err != nil {
-			return fmt.Errorf("creating cache parent %s: %w", filepath.Dir(workDir), err)
-		}
-		if err := runGit(stdout, stderr, "", "clone", repoURL, workDir); err != nil {
-			_ = os.RemoveAll(workDir)
-			return fmt.Errorf("cloning %s: %w", repoURL, err)
-		}
-		return nil
+		return fmt.Errorf("checking %s: %w", buildDir, err)
 	}
 	if !info.IsDir() {
-		return fmt.Errorf("deploy cache path %s exists but is not a directory; remove it and rerun", workDir)
+		return fmt.Errorf("build path %s is not a directory", buildDir)
 	}
-	if _, err := os.Stat(filepath.Join(workDir, ".git")); err != nil {
-		return fmt.Errorf("deploy cache %s is not a git working copy; remove it and rerun", workDir)
+
+	if _, err := os.Stat(gitDir); err != nil {
+		if !os.IsNotExist(err) {
+			return fmt.Errorf("checking %s: %w", gitDir, err)
+		}
+		if err := os.MkdirAll(filepath.Dir(gitDir), 0o755); err != nil {
+			return fmt.Errorf("creating cache parent %s: %w", filepath.Dir(gitDir), err)
+		}
+		if err := runGit(stdout, stderr, "", "clone", "--bare", repoURL, gitDir); err != nil {
+			_ = os.RemoveAll(gitDir)
+			return fmt.Errorf("cloning %s: %w", repoURL, err)
+		}
+		// `git clone --bare` sets up the origin remote but no fetch refspec
+		// and no refs/remotes/origin/*. Add the standard refspec so future
+		// fetches mirror origin into refs/remotes/origin/*, which lets us
+		// distinguish origin's tip from our locally-committed branch.
+		if err := runGit(stdout, stderr, "", "--git-dir="+gitDir, "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"); err != nil {
+			return err
+		}
+		// Disable bareness so add/commit will operate on --work-tree without
+		// refusing.
+		if err := runGit(stdout, stderr, "", "--git-dir="+gitDir, "config", "core.bare", "false"); err != nil {
+			return err
+		}
+	} else {
+		if err := verifyOrigin(gitDir, repoURL); err != nil {
+			return err
+		}
 	}
-	if err := verifyOrigin(workDir, repoURL); err != nil {
-		return err
-	}
-	if err := runGit(stdout, stderr, workDir, "fetch", "--prune", "origin"); err != nil {
+
+	if err := runGit(stdout, stderr, "", "--git-dir="+gitDir, "fetch", "--prune", "origin"); err != nil {
 		return fmt.Errorf("fetching %s: %w", repoURL, err)
 	}
-	branch, err := DefaultBranch(workDir)
+
+	branch, err := DefaultBranch(gitDir)
 	if err != nil {
 		return err
 	}
-	if err := runGit(stdout, stderr, workDir, "checkout", branch); err != nil {
-		return fmt.Errorf("checking out %s: %w", branch, err)
-	}
-	if err := runGit(stdout, stderr, workDir, "reset", "--hard", "origin/"+branch); err != nil {
+	// reset --mixed updates HEAD and the index, but leaves the work-tree
+	// (buildDir) alone so the next `git add -A` sees exactly the difference
+	// between origin and the build output.
+	if err := runGit(stdout, stderr, "", "--git-dir="+gitDir, "--work-tree="+buildDir,
+		"reset", "--mixed", "origin/"+branch); err != nil {
 		return fmt.Errorf("resetting to origin/%s: %w", branch, err)
-	}
-	if err := runGit(stdout, stderr, workDir, "clean", "-fd"); err != nil {
-		return fmt.Errorf("cleaning %s: %w", workDir, err)
 	}
 	return nil
 }
 
-// Commit stages all changes in workDir and creates a commit with the given
-// message. Returns true if a commit was created, false if there was nothing
-// to commit.
-func Commit(workDir, message string, opt Options) (bool, error) {
+// Commit stages every change between origin and buildDir, then commits if
+// anything is staged. Returns true when a commit was created.
+func Commit(gitDir, buildDir, message string, opt Options) (bool, error) {
 	if err := requireGit(); err != nil {
 		return false, err
 	}
 	stdout, stderr := opt.writers()
-	if err := runGit(stdout, stderr, workDir, "add", "-A"); err != nil {
+	if err := runGit(stdout, stderr, "", "--git-dir="+gitDir, "--work-tree="+buildDir, "add", "-A"); err != nil {
 		return false, fmt.Errorf("staging changes: %w", err)
 	}
-	clean, err := isClean(workDir)
+	out, err := gitOutput("", "--git-dir="+gitDir, "--work-tree="+buildDir, "status", "--porcelain")
 	if err != nil {
-		return false, fmt.Errorf("checking working tree status: %w", err)
+		return false, fmt.Errorf("checking status: %w", err)
 	}
-	if clean {
+	if out == "" {
 		return false, nil
 	}
-	if err := runGit(stdout, stderr, workDir, "commit", "-m", message); err != nil {
+	if err := runGit(stdout, stderr, "", "--git-dir="+gitDir, "--work-tree="+buildDir, "commit", "-m", message); err != nil {
 		return false, fmt.Errorf("creating commit: %w", err)
 	}
 	return true, nil
 }
 
-// Push pushes the current branch in workDir to origin, setting upstream so
-// that the first push against a previously-empty repository succeeds.
-func Push(workDir string, opt Options) error {
+// Push pushes HEAD to origin, setting upstream so the first push against a
+// previously-empty repository succeeds.
+func Push(gitDir string, opt Options) error {
 	if err := requireGit(); err != nil {
 		return err
 	}
 	stdout, stderr := opt.writers()
-	if err := runGit(stdout, stderr, workDir, "push", "--set-upstream", "origin", "HEAD"); err != nil {
+	if err := runGit(stdout, stderr, "", "--git-dir="+gitDir, "push", "--set-upstream", "origin", "HEAD"); err != nil {
 		return fmt.Errorf("pushing to origin: %w", err)
 	}
 	return nil
 }
 
-// IsSyncedWithOrigin reports whether HEAD points at the same commit as its
-// upstream tracking branch. Returns false when no upstream is configured
-// (e.g. a freshly-cloned repository whose default branch hasn't been pushed
-// since cloning), so callers treat that case as "needs a push".
-func IsSyncedWithOrigin(workDir string) (bool, error) {
-	upstream, err := gitOutput(workDir, "rev-parse", "--symbolic-full-name", "@{u}")
-	if err != nil || upstream == "" {
-		return false, nil
+// DefaultBranch returns the name of the default branch tracked by gitDir.
+// `git clone --bare` initializes HEAD as a symref to refs/heads/<default>,
+// so the local symref tells us the branch name without an extra round-trip
+// to the remote.
+func DefaultBranch(gitDir string) (string, error) {
+	if out, err := gitOutput("", "--git-dir="+gitDir, "symbolic-ref", "--short", "HEAD"); err == nil && out != "" {
+		return out, nil
 	}
-	head, err := gitOutput(workDir, "rev-parse", "HEAD")
-	if err != nil {
-		return false, err
-	}
-	upstreamSHA, err := gitOutput(workDir, "rev-parse", upstream)
-	if err != nil {
-		return false, err
-	}
-	return head == upstreamSHA, nil
-}
-
-// DefaultBranch returns the name of the remote's default branch (e.g. "main"
-// or "master") as recorded in refs/remotes/origin/HEAD, falling back to the
-// currently checked-out local branch if the symbolic ref is absent (e.g. on
-// a freshly-cloned empty repository).
-func DefaultBranch(workDir string) (string, error) {
-	if out, err := gitOutput(workDir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); err == nil {
-		// Returns e.g. "origin/main".
+	if out, err := gitOutput("", "--git-dir="+gitDir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); err == nil {
 		if i := strings.IndexByte(out, '/'); i >= 0 {
 			return out[i+1:], nil
 		}
 		return out, nil
 	}
-	if out, err := gitOutput(workDir, "remote", "show", "origin"); err == nil {
-		for _, line := range strings.Split(out, "\n") {
-			line = strings.TrimSpace(line)
-			if rest, ok := strings.CutPrefix(line, "HEAD branch:"); ok {
-				name := strings.TrimSpace(rest)
-				if name != "" && name != "(unknown)" {
-					return name, nil
-				}
-			}
-		}
-	}
-	if out, err := gitOutput(workDir, "symbolic-ref", "--short", "HEAD"); err == nil && out != "" {
-		return out, nil
-	}
-	return "", errors.New("could not determine default branch of origin (is the remote empty?)")
+	return "", errors.New("could not determine default branch (is the remote empty?)")
 }
 
-// Sync mirrors srcDir into destDir, preserving destDir/.git so the next
-// commit picks up the diff against the previously deployed state. Files in
-// destDir other than .git are removed before srcDir is copied in.
-func Sync(srcDir, destDir string) error {
-	srcInfo, err := os.Stat(srcDir)
+func verifyOrigin(gitDir, repoURL string) error {
+	got, err := gitOutput("", "--git-dir="+gitDir, "remote", "get-url", "origin")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("build directory %s does not exist; run `npub build` first", srcDir)
-		}
-		return fmt.Errorf("checking %s: %w", srcDir, err)
-	}
-	if !srcInfo.IsDir() {
-		return fmt.Errorf("build path %s is not a directory", srcDir)
-	}
-	if err := clearExceptGit(destDir); err != nil {
-		return err
-	}
-	return copyTree(srcDir, destDir)
-}
-
-// clearExceptGit removes every entry in destDir other than the .git
-// directory, so a subsequent copy yields a clean mirror.
-func clearExceptGit(destDir string) error {
-	entries, err := os.ReadDir(destDir)
-	if err != nil {
-		return fmt.Errorf("reading %s: %w", destDir, err)
-	}
-	for _, e := range entries {
-		if e.Name() == ".git" {
-			continue
-		}
-		if err := os.RemoveAll(filepath.Join(destDir, e.Name())); err != nil {
-			return fmt.Errorf("removing %s: %w", e.Name(), err)
-		}
-	}
-	return nil
-}
-
-func copyTree(srcDir, destDir string) error {
-	return filepath.WalkDir(srcDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := filepath.Rel(srcDir, path)
-		if err != nil {
-			return err
-		}
-		if rel == "." {
-			return nil
-		}
-		dest := filepath.Join(destDir, rel)
-		if d.IsDir() {
-			return os.MkdirAll(dest, 0o755)
-		}
-		return copyFile(path, dest)
-	})
-}
-
-func copyFile(src, dest string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = in.Close() }()
-	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-		return err
-	}
-	out, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		_ = out.Close()
-		return err
-	}
-	return out.Close()
-}
-
-func verifyOrigin(workDir, repoURL string) error {
-	got, err := gitOutput(workDir, "remote", "get-url", "origin")
-	if err != nil {
-		return fmt.Errorf("reading origin URL of %s: %w", workDir, err)
+		return fmt.Errorf("reading origin URL of %s: %w", gitDir, err)
 	}
 	if got != repoURL {
 		return fmt.Errorf(
 			"deploy cache %s tracks %s but deploy_repo is %s; remove the cache directory or revert deploy_repo",
-			workDir, got, repoURL,
+			gitDir, got, repoURL,
 		)
 	}
 	return nil
@@ -373,12 +284,4 @@ func lastNonEmptyLine(s string) string {
 		}
 	}
 	return ""
-}
-
-func isClean(dir string) (bool, error) {
-	out, err := gitOutput(dir, "status", "--porcelain")
-	if err != nil {
-		return false, err
-	}
-	return out == "", nil
 }

@@ -121,7 +121,7 @@ npub deploy
 
 `npub build` writes the site to `~/.cache/npub/<repo>/build`. It never contacts the remote — everything is offline.
 
-`npub deploy` clones `deploy_repo` into `~/.cache/npub/<repo>/repo` on first use, fetches and hard-resets it to the remote default branch on subsequent runs, then mirrors the contents of `build/` into `repo/` (preserving `repo/.git`), commits the diff, and pushes. Use `--dry-run` to sync and commit locally without pushing.
+`npub deploy` keeps a bare clone of `deploy_repo` at `~/.cache/npub/<repo>/git` and uses `~/.cache/npub/<repo>/build` as a temporary work-tree (via git's `--git-dir` and `--work-tree` options) when committing. There is no second copy of the site on disk: deploy fetches, points git at the build directory, and runs `add -A` + commit + push. Stale files are removed and changed files updated by the same `add -A` pass. Use `--dry-run` to commit locally without pushing.
 
 ## Notes format
 

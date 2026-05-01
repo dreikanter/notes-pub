@@ -95,16 +95,15 @@ operations happen in deploy.`,
 
 var deployCmd = &cobra.Command{
 	Use:   "deploy",
-	Short: "Sync the built site to deploy_repo and push",
-	Long: `Mirror the build output into the deploy_repo working copy, commit, and push.
+	Short: "Commit and push the built site to deploy_repo",
+	Long: `Commit the contents of the build directory to deploy_repo and push.
 
-deploy clones deploy_repo into ~/.cache/npub/<repo>/repo on first use and
-hard-resets it to the remote default branch on subsequent runs. The contents
-of ~/.cache/npub/<repo>/build (produced by npub build) are copied over the
-working copy, .git is preserved, and the resulting diff is committed.
+deploy maintains a bare clone of deploy_repo at ~/.cache/npub/<repo>/git
+and uses ~/.cache/npub/<repo>/build (produced by npub build) as a temporary
+work-tree when committing. No second copy of the site is kept on disk.
 
 deploy does not rebuild; run npub build first. With --dry-run, deploy
-syncs and commits locally but skips the push.`,
+commits locally but skips the push.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfgPath, _ := cmd.Flags().GetString("config")
 		cfg, _, err := loadConfig(cmd, cfgPath)
@@ -120,45 +119,31 @@ syncs and commits locally but skips the push.`,
 		if err != nil {
 			return err
 		}
-		if _, err := os.Stat(buildDir); err != nil {
-			if os.IsNotExist(err) {
-				return fmt.Errorf("build directory %s does not exist; run `npub build` first", buildDir)
-			}
-			return fmt.Errorf("checking %s: %w", buildDir, err)
-		}
-
-		repoDir, err := deploy.RepoDir(cfg.DeployRepo)
+		gitDir, err := deploy.GitDir(cfg.DeployRepo)
 		if err != nil {
 			return err
 		}
-		log.Printf("preparing %s", repoDir)
-		if err := deploy.Prepare(cfg.DeployRepo, repoDir, deploy.Options{}); err != nil {
-			return err
-		}
 
-		log.Printf("syncing %s -> %s", buildDir, repoDir)
-		if err := deploy.Sync(buildDir, repoDir); err != nil {
+		log.Printf("preparing %s", gitDir)
+		if err := deploy.Prepare(cfg.DeployRepo, gitDir, buildDir, deploy.Options{}); err != nil {
 			return err
 		}
 
 		message := fmt.Sprintf("Deploy %s", time.Now().UTC().Format(time.RFC3339))
-		committed, err := deploy.Commit(repoDir, message, deploy.Options{})
+		committed, err := deploy.Commit(gitDir, buildDir, message, deploy.Options{})
 		if err != nil {
 			return err
 		}
 		if !committed {
-			synced, _ := deploy.IsSyncedWithOrigin(repoDir)
-			if synced {
-				log.Println("no changes to deploy")
-				return nil
-			}
+			log.Println("no changes to deploy")
+			return nil
 		}
 		if dryRun {
 			log.Println("dry-run: skipping push")
 			return nil
 		}
 		log.Println("pushing")
-		if err := deploy.Push(repoDir, deploy.Options{}); err != nil {
+		if err := deploy.Push(gitDir, deploy.Options{}); err != nil {
 			return err
 		}
 		log.Println("deploy complete")
