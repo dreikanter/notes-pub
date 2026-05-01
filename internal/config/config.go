@@ -16,7 +16,6 @@ const DefaultConfigFile = "npub.yml"
 type Config struct {
 	NotesPath   string `yaml:"notes_path"`
 	AssetsPath  string `yaml:"assets_path"`
-	BuildPath   string `yaml:"build_path"`
 	StaticPath  string `yaml:"static_path"`
 	SiteRootURL string `yaml:"site_root_url"`
 	SiteName    string `yaml:"site_name"`
@@ -107,10 +106,6 @@ func Load(yamlPath string, flagOverrides map[string]string) (Config, error) {
 	}
 	cfg.NotesPath = ExpandPath(cfg.NotesPath)
 	cfg.AssetsPath = ExpandPath(cfg.AssetsPath)
-	// BuildPath is resolved by the caller (--out flag, deploy_repo, or
-	// fallback) and is not loaded from YAML, so any value parsed from the
-	// file is discarded here.
-	cfg.BuildPath = ""
 	cfg.StaticPath = ExpandPath(cfg.StaticPath)
 	cfg.CachePath = ExpandPath(cfg.CachePath)
 	if cfg.StaticPath == "" && cfg.NotesPath != "" {

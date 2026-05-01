@@ -82,11 +82,10 @@ operations happen in deploy.`,
 		if err != nil {
 			return err
 		}
-		cfg.BuildPath = buildPath
 
-		log.Printf("building site from %s to %s", cfg.NotesPath, cfg.BuildPath)
+		log.Printf("building site from %s to %s", cfg.NotesPath, buildPath)
 		store := note.NewOSStore(cfg.NotesPath)
-		if err := build.Build(store, cfg, npub.Assets); err != nil {
+		if err := build.Build(store, cfg, buildPath, npub.Assets); err != nil {
 			return err
 		}
 		log.Println("build complete")
@@ -171,9 +170,6 @@ config discovery.`,
 		cfg, cfgPath, loadErr := loadConfig(cmd, cfgFlag)
 		if abs, err := filepath.Abs(cfgPath); err == nil {
 			cfgPath = abs
-		}
-		if buildPath, err := resolveBuildPath(cmd, cfg); err == nil {
-			cfg.BuildPath = buildPath
 		}
 		if err := printConfig(cmd.OutOrStdout(), cfgPath, cfg); err != nil {
 			return err

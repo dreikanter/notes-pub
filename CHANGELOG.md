@@ -9,7 +9,7 @@
 
 ### Changed
 
-- `build_path` is no longer a YAML key. `npub build` resolves its output directory in this order: `--out` flag, `<cache_path>/build` when `deploy_repo` is set, then `./dist`. `npub serve` follows the same fallback chain when `--dir` is not given. Existing configs with a `build_path` entry continue to load (the value is silently discarded). ([#78])
+- `build_path` is removed. `npub build` resolves its output directory in this order: `--out` flag, `<cache_path>/build` when `deploy_repo` is set, then `./dist`. `npub serve` follows the same fallback chain when `--dir` is not given. Existing configs with a `build_path` key continue to load (the YAML parser silently ignores unknown keys), but the value has no effect. `npub config` no longer prints `build_path`; the resolved path appears in `npub build`'s log line. ([#78])
 
 [#78]: https://github.com/dreikanter/npub/pull/78
 
