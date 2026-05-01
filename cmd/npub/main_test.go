@@ -38,8 +38,8 @@ func TestInitConfigCreatesSampleInNewDirectory(t *testing.T) {
 	content := string(data)
 	for _, want := range []string{
 		`# notes_path: ""`,
-		`# build_path: "./dist"`,
 		`# license_name: "CC BY 4.0"`,
+		`# deploy_repo: ""`,
 	} {
 		assert.Contains(t, content, want)
 	}
@@ -140,6 +140,7 @@ author_name: "Test Author"
 	assert.Contains(t, out, "author_name: Test Author")
 	assert.Contains(t, out, "license_name: CC BY 4.0")
 	assert.Contains(t, out, "license_url: https://creativecommons.org/licenses/by/4.0/")
+	assert.Contains(t, out, "deploy_repo: \"\"")
 }
 
 func TestConfigCommandAppliesFlagOverrides(t *testing.T) {

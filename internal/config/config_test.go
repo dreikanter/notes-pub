@@ -21,7 +21,6 @@ func TestLoadFromYAML(t *testing.T) {
 	yamlPath := writeConfig(t, `
 notes_path: "/tmp/notes"
 assets_path: "/tmp/assets"
-build_path: "./dist"
 site_root_url: "https://example.com"
 site_name: "Test Site"
 author_name: "Test Author"
@@ -32,7 +31,6 @@ author_name: "Test Author"
 
 	assert.Equal(t, "/tmp/notes", cfg.NotesPath)
 	assert.Equal(t, "/tmp/assets", cfg.AssetsPath)
-	assert.Equal(t, "./dist", cfg.BuildPath)
 	assert.Equal(t, "https://example.com", cfg.SiteRootURL)
 	assert.Equal(t, "Test Site", cfg.SiteName)
 	assert.Equal(t, "Test Author", cfg.AuthorName)
@@ -42,7 +40,6 @@ func TestFlagOverridesYAML(t *testing.T) {
 	yamlPath := writeConfig(t, `
 notes_path: "/tmp/notes"
 assets_path: "/tmp/assets"
-build_path: "./dist"
 site_root_url: "https://example.com"
 site_name: "Test Site"
 author_name: "Test Author"
@@ -66,7 +63,6 @@ notes_path: "/tmp/notes"
 func TestAssetsPathDefaultsToNotesImages(t *testing.T) {
 	yamlPath := writeConfig(t, `
 notes_path: "/tmp/notes"
-build_path: "./dist"
 site_root_url: "https://example.com"
 site_name: "Test Site"
 author_name: "Test Author"
@@ -78,9 +74,10 @@ author_name: "Test Author"
 	assert.Equal(t, filepath.Join("/tmp/notes", "images"), cfg.AssetsPath)
 }
 
-func TestBuildPathDefaultsToDist(t *testing.T) {
+func TestLoadIgnoresBuildPath(t *testing.T) {
 	yamlPath := writeConfig(t, `
 notes_path: "/tmp/notes"
+build_path: "/tmp/should-be-ignored"
 site_root_url: "https://example.com"
 site_name: "Test Site"
 author_name: "Test Author"
@@ -89,12 +86,11 @@ author_name: "Test Author"
 	cfg, err := Load(yamlPath, nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, "./dist", cfg.BuildPath)
+	assert.Empty(t, cfg.BuildPath, "build_path is resolved by the caller, not loaded from YAML")
 }
 
 func TestNotesPathDefaultsToEnvVar(t *testing.T) {
 	yamlPath := writeConfig(t, `
-build_path: "./dist"
 site_root_url: "https://example.com"
 site_name: "Test Site"
 author_name: "Test Author"
@@ -111,7 +107,6 @@ func TestExpandHomePath(t *testing.T) {
 	yamlPath := writeConfig(t, `
 notes_path: "~/notes"
 assets_path: "~/assets"
-build_path: "./dist"
 site_root_url: "https://example.com"
 site_name: "Test Site"
 author_name: "Test Author"
@@ -129,7 +124,6 @@ func TestExpandEnvVarsInYAMLPaths(t *testing.T) {
 	yamlPath := writeConfig(t, `
 notes_path: "$NPUB_TEST_ROOT/notes"
 assets_path: "$NPUB_TEST_ROOT/assets"
-build_path: "$NPUB_TEST_ROOT/dist"
 static_path: "$NPUB_TEST_ROOT/static"
 site_root_url: "https://example.com"
 site_name: "Test Site"
@@ -142,7 +136,6 @@ author_name: "Test Author"
 
 	assert.Equal(t, "/srv/npub/notes", cfg.NotesPath)
 	assert.Equal(t, "/srv/npub/assets", cfg.AssetsPath)
-	assert.Equal(t, "/srv/npub/dist", cfg.BuildPath)
 	assert.Equal(t, "/srv/npub/static", cfg.StaticPath)
 }
 

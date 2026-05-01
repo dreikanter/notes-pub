@@ -30,19 +30,18 @@ Create a `npub.yml` file:
 
 ```yaml
 notes_path: "~/notes"
-build_path: "dist"
 site_root_url: "https://example.com"
 site_name: "My Notes"
 author_name: "Ada Lovelace"
+deploy_repo: "git@github.com:user/site.git"
 ```
 
 All values can be overridden with CLI flags:
 
 | Config option | CLI flag | Default | Required |
 |---|---|---|---|
-| `notes_path` | `--notes` | `$NOTES_PATH` | |
+| `notes_path` | `--path` | `$NOTES_PATH` | |
 | `assets_path` | `--assets` | `<notes_path>/images` | |
-| `build_path` | `--out` | `./dist` | |
 | `static_path` | `--static` | `<notes_path>/static` | |
 | `site_root_url` | `--url` | | Yes |
 | `site_name` | `--site-name` | | Yes |
@@ -51,6 +50,11 @@ All values can be overridden with CLI flags:
 | `license_url` | `--license-url` | https://creativecommons.org/licenses/by/4.0/ | |
 | `intro` | | | |
 | `deploy_repo` | | | For `deploy` |
+
+The build output directory is not a config option. `npub build` writes to
+`~/.cache/npub/<repo>/build` when `deploy_repo` is set, otherwise to
+`./dist`. Pass `--out <dir>` to `npub build` to override. `build` never
+talks to the deploy_repo remote — all git operations happen in `deploy`.
 
 Priority: CLI flags > YAML config.
 
@@ -106,15 +110,18 @@ Serve locally:
 npub serve
 ```
 
-The `serve` command starts a local HTTP server on `localhost:4000` (override with `--host` and `--port`). It serves the `build_path` from your config (or `./dist` if no config is found). Override with `--dir`.
+The `serve` command starts a local HTTP server on `localhost:4000` (override with `--host` and `--port`). It serves the build directory (`~/.cache/npub/<repo>/build` if `deploy_repo` is set, otherwise `./dist`). Override with `--dir`.
 
 Deploy to a git remote:
 
 ```sh
+npub build
 npub deploy
 ```
 
-`npub deploy` builds the site directly into a local working copy of `deploy_repo`, then commits and pushes the result. The working copy is kept in `~/.cache/npub/<repo>`; the first run clones, subsequent runs fetch and hard-reset to the remote default branch before building. Use `--dry-run` to build and commit locally without pushing.
+`npub build` writes the site to `~/.cache/npub/<repo>/build`. It never contacts the remote — everything is offline.
+
+`npub deploy` clones `deploy_repo` into `~/.cache/npub/<repo>/repo` on first use, fetches and hard-resets it to the remote default branch on subsequent runs, then mirrors the contents of `build/` into `repo/` (preserving `repo/.git`), commits the diff, and pushes. Use `--dry-run` to sync and commit locally without pushing.
 
 ## Notes format
 

@@ -88,7 +88,6 @@ func Load(yamlPath string, flagOverrides map[string]string) (Config, error) {
 	flagMap := map[string]*string{
 		"path":         &cfg.NotesPath,
 		"assets":       &cfg.AssetsPath,
-		"out":          &cfg.BuildPath,
 		"static":       &cfg.StaticPath,
 		"url":          &cfg.SiteRootURL,
 		"site-name":    &cfg.SiteName,
@@ -107,10 +106,10 @@ func Load(yamlPath string, flagOverrides map[string]string) (Config, error) {
 	}
 	cfg.NotesPath = ExpandPath(cfg.NotesPath)
 	cfg.AssetsPath = ExpandPath(cfg.AssetsPath)
-	if cfg.BuildPath == "" {
-		cfg.BuildPath = "./dist"
-	}
-	cfg.BuildPath = ExpandPath(cfg.BuildPath)
+	// BuildPath is resolved by the caller (--out flag, deploy_repo, or
+	// fallback) and is not loaded from YAML, so any value parsed from the
+	// file is discarded here.
+	cfg.BuildPath = ""
 	cfg.StaticPath = ExpandPath(cfg.StaticPath)
 	if cfg.StaticPath == "" && cfg.NotesPath != "" {
 		cfg.StaticPath = filepath.Join(cfg.NotesPath, "static")

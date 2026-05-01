@@ -58,8 +58,15 @@ var initCmd = &cobra.Command{
 var buildCmd = &cobra.Command{
 	Use:   "build",
 	Short: "Build the static site",
-	Long: `Read notes from notes_path, render to HTML, write to build_path. Flags below
-override the corresponding YAML keys.`,
+	Long: `Read notes from notes_path, render to HTML, and write the site files.
+
+Output directory resolution:
+  --out <dir>              explicit override
+  deploy_repo (in YAML)    ~/.cache/npub/<repo>/build
+  fallback                 ./dist
+
+build runs offline: it never talks to the deploy_repo remote. All git
+operations happen in deploy.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfgPath, _ := cmd.Flags().GetString("config")
 		cfg, _, err := loadConfig(cmd, cfgPath)
@@ -70,10 +77,16 @@ override the corresponding YAML keys.`,
 			return err
 		}
 
+		buildPath, err := resolveBuildPath(cmd, cfg)
+		if err != nil {
+			return err
+		}
+		cfg.BuildPath = buildPath
+
 		log.Printf("building site from %s to %s", cfg.NotesPath, cfg.BuildPath)
 		store := note.NewOSStore(cfg.NotesPath)
 		if err := build.Build(store, cfg, npub.Assets); err != nil {
-			return fmt.Errorf("build failed: %w", err)
+			return err
 		}
 		log.Println("build complete")
 		return nil
@@ -82,19 +95,20 @@ override the corresponding YAML keys.`,
 
 var deployCmd = &cobra.Command{
 	Use:   "deploy",
-	Short: "Build and push the site to a git remote",
-	Long: `Build the site into a local working copy of deploy_repo and push it.
+	Short: "Sync the built site to deploy_repo and push",
+	Long: `Mirror the build output into the deploy_repo working copy, commit, and push.
 
-The working copy lives in ~/.cache/npub/<repo>; npub clones into it on first
-use and hard-resets it to the remote default branch on subsequent runs. With
---dry-run, npub still clones, fetches, and builds, but skips the push.`,
+deploy clones deploy_repo into ~/.cache/npub/<repo>/repo on first use and
+hard-resets it to the remote default branch on subsequent runs. The contents
+of ~/.cache/npub/<repo>/build (produced by npub build) are copied over the
+working copy, .git is preserved, and the resulting diff is committed.
+
+deploy does not rebuild; run npub build first. With --dry-run, deploy
+syncs and commits locally but skips the push.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfgPath, _ := cmd.Flags().GetString("config")
 		cfg, _, err := loadConfig(cmd, cfgPath)
 		if err != nil {
-			return err
-		}
-		if err := validateNotesPath(cfg.NotesPath); err != nil {
 			return err
 		}
 		if strings.TrimSpace(cfg.DeployRepo) == "" {
@@ -102,37 +116,49 @@ use and hard-resets it to the remote default branch on subsequent runs. With
 		}
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 
-		workDir, err := deploy.WorkDir(cfg.DeployRepo)
+		buildDir, err := deploy.BuildDir(cfg.DeployRepo)
 		if err != nil {
 			return err
 		}
-		log.Printf("preparing %s", workDir)
-		if err := deploy.Prepare(cfg.DeployRepo, workDir, deploy.Options{}); err != nil {
+		if _, err := os.Stat(buildDir); err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("build directory %s does not exist; run `npub build` first", buildDir)
+			}
+			return fmt.Errorf("checking %s: %w", buildDir, err)
+		}
+
+		repoDir, err := deploy.RepoDir(cfg.DeployRepo)
+		if err != nil {
+			return err
+		}
+		log.Printf("preparing %s", repoDir)
+		if err := deploy.Prepare(cfg.DeployRepo, repoDir, deploy.Options{}); err != nil {
 			return err
 		}
 
-		cfg.BuildPath = workDir
-		log.Printf("building site from %s to %s", cfg.NotesPath, cfg.BuildPath)
-		store := note.NewOSStore(cfg.NotesPath)
-		if err := build.Build(store, cfg, npub.Assets); err != nil {
+		log.Printf("syncing %s -> %s", buildDir, repoDir)
+		if err := deploy.Sync(buildDir, repoDir); err != nil {
 			return err
 		}
 
 		message := fmt.Sprintf("Deploy %s", time.Now().UTC().Format(time.RFC3339))
-		committed, err := deploy.Commit(workDir, message, deploy.Options{})
+		committed, err := deploy.Commit(repoDir, message, deploy.Options{})
 		if err != nil {
 			return err
 		}
 		if !committed {
-			log.Println("no changes to deploy")
-			return nil
+			synced, _ := deploy.IsSyncedWithOrigin(repoDir)
+			if synced {
+				log.Println("no changes to deploy")
+				return nil
+			}
 		}
 		if dryRun {
 			log.Println("dry-run: skipping push")
 			return nil
 		}
 		log.Println("pushing")
-		if err := deploy.Push(workDir, deploy.Options{}); err != nil {
+		if err := deploy.Push(repoDir, deploy.Options{}); err != nil {
 			return err
 		}
 		log.Println("deploy complete")
@@ -161,6 +187,9 @@ config discovery.`,
 		if abs, err := filepath.Abs(cfgPath); err == nil {
 			cfgPath = abs
 		}
+		if buildPath, err := resolveBuildPath(cmd, cfg); err == nil {
+			cfg.BuildPath = buildPath
+		}
 		if err := printConfig(cmd.OutOrStdout(), cfgPath, cfg); err != nil {
 			return err
 		}
@@ -183,8 +212,8 @@ func printConfig(w io.Writer, cfgPath string, cfg config.Config) error {
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Serve the built site locally",
-	Long: `Serve the built site over HTTP. Without --dir, uses build_path from the
-config (falling back to ./dist when no config is found).`,
+	Long: `Serve the built site over HTTP. Without --dir, uses the deploy_repo cache
+directory if set, otherwise ./dist.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		host, _ := cmd.Flags().GetString("host")
 		port, _ := cmd.Flags().GetInt("port")
@@ -199,7 +228,11 @@ config (falling back to ./dist when no config is found).`,
 			if err != nil {
 				return err
 			}
-			dir = cfg.BuildPath
+			resolved, rerr := resolveBuildPath(cmd, cfg)
+			if rerr != nil {
+				return rerr
+			}
+			dir = resolved
 		}
 		dir = config.ExpandPath(dir)
 		info, err := os.Stat(dir)
@@ -241,6 +274,22 @@ func validateNotesPath(path string) error {
 		return fmt.Errorf("invalid notes path %q: not a directory", path)
 	}
 	return nil
+}
+
+// resolveBuildPath returns the directory the build will write to.
+//
+// Precedence:
+//  1. --out flag (explicit override)
+//  2. deploy_repo cache (~/.cache/npub/<repo>/build)
+//  3. ./dist
+func resolveBuildPath(cmd *cobra.Command, cfg config.Config) (string, error) {
+	if f := cmd.Flags().Lookup("out"); f != nil && f.Changed {
+		return config.ExpandPath(f.Value.String()), nil
+	}
+	if strings.TrimSpace(cfg.DeployRepo) != "" {
+		return deploy.BuildDir(cfg.DeployRepo)
+	}
+	return "./dist", nil
 }
 
 func initConfig(path string) (string, error) {
@@ -306,7 +355,7 @@ func loadConfig(cmd *cobra.Command, cfgPath string) (config.Config, string, erro
 	}
 	cfgPath = resolveConfigPath(cfgPath, notesPath)
 
-	flagNames := []string{"path", "assets", "out", "static", "url", "site-name", "author", "license-name", "license-url"}
+	flagNames := []string{"path", "assets", "static", "url", "site-name", "author", "license-name", "license-url"}
 	flagOverrides := make(map[string]string)
 	for _, name := range flagNames {
 		if f := cmd.Flags().Lookup(name); f != nil && f.Changed {
@@ -324,7 +373,7 @@ func loadConfig(cmd *cobra.Command, cfgPath string) (config.Config, string, erro
 func loadConfigOpt(cmd *cobra.Command, cfgPath string) (config.Config, error) {
 	cfg, _, err := loadConfig(cmd, cfgPath)
 	if err != nil && !cmd.Flags().Changed("config") {
-		return config.Config{BuildPath: "./dist"}, nil
+		return config.Config{}, nil
 	}
 	return cfg, err
 }
@@ -342,9 +391,11 @@ func init() {
 	addConfigFlags(buildCmd)
 	addConfigFlags(configCmd)
 	addConfigFlags(deployCmd)
-	deployCmd.Flags().Bool("dry-run", false, "build and commit but skip git push")
+	buildCmd.Flags().String("out", "", "output directory (overrides deploy_repo cache; default: ./dist)")
+	configCmd.Flags().String("out", "", "preview build path override")
+	deployCmd.Flags().Bool("dry-run", false, "commit locally but skip git push")
 
-	serveCmd.Flags().String("dir", "", "directory to serve (default: build_path from config, or ./dist)")
+	serveCmd.Flags().String("dir", "", "directory to serve (default: deploy_repo cache or ./dist)")
 	serveCmd.Flags().String("host", "localhost", "interface to bind")
 	serveCmd.Flags().Int("port", 4000, "port to listen on")
 
@@ -358,7 +409,6 @@ func init() {
 func addConfigFlags(cmd *cobra.Command) {
 	cmd.Flags().String("path", "", "notes path (default: NOTES_PATH)")
 	cmd.Flags().String("assets", "", "image assets path")
-	cmd.Flags().String("out", "", "output directory (default: ./dist)")
 	cmd.Flags().String("static", "", "static files directory")
 	cmd.Flags().String("url", "", "site root URL")
 	cmd.Flags().String("site-name", "", "site name")

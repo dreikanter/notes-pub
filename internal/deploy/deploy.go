@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-// CacheRoot returns the root directory used for deploy working copies.
+// CacheRoot returns the root directory used for deploy artifacts.
 func CacheRoot() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -22,8 +22,9 @@ func CacheRoot() (string, error) {
 	return filepath.Join(home, ".cache", "npub"), nil
 }
 
-// WorkDir returns the working directory for a given deploy repo URL.
-func WorkDir(repoURL string) (string, error) {
+// CacheDir returns the per-repo cache parent for repoURL,
+// ~/.cache/npub/<repo>. Both BuildDir and RepoDir live under it.
+func CacheDir(repoURL string) (string, error) {
 	if strings.TrimSpace(repoURL) == "" {
 		return "", errors.New("deploy_repo is empty")
 	}
@@ -36,6 +37,27 @@ func WorkDir(repoURL string) (string, error) {
 		return "", fmt.Errorf("cannot derive a directory name from deploy_repo %q", repoURL)
 	}
 	return filepath.Join(root, slug), nil
+}
+
+// BuildDir returns the directory where `npub build` writes the rendered site
+// for repoURL: ~/.cache/npub/<repo>/build. It is a plain directory, not a
+// git working copy.
+func BuildDir(repoURL string) (string, error) {
+	dir, err := CacheDir(repoURL)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "build"), nil
+}
+
+// RepoDir returns the directory where `npub deploy` keeps the git working
+// copy of repoURL: ~/.cache/npub/<repo>/repo.
+func RepoDir(repoURL string) (string, error) {
+	dir, err := CacheDir(repoURL)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "repo"), nil
 }
 
 // RepoSlug derives a directory name from a git repository URL. It strips a
@@ -72,8 +94,8 @@ func (o Options) writers() (io.Writer, io.Writer) {
 // Prepare ensures workDir contains an up-to-date checkout of repoURL. If
 // workDir does not exist, repoURL is cloned into it. Otherwise the remote
 // is verified, fetched, and the working copy is hard-reset to the remote
-// default branch, discarding local commits and untracked files so the next
-// build starts from a clean state.
+// default branch, discarding local commits and untracked files so a
+// subsequent Sync starts from a clean mirror of origin.
 func Prepare(repoURL, workDir string, opt Options) error {
 	if err := requireGit(); err != nil {
 		return err
@@ -158,6 +180,26 @@ func Push(workDir string, opt Options) error {
 	return nil
 }
 
+// IsSyncedWithOrigin reports whether HEAD points at the same commit as its
+// upstream tracking branch. Returns false when no upstream is configured
+// (e.g. a freshly-cloned repository whose default branch hasn't been pushed
+// since cloning), so callers treat that case as "needs a push".
+func IsSyncedWithOrigin(workDir string) (bool, error) {
+	upstream, err := gitOutput(workDir, "rev-parse", "--symbolic-full-name", "@{u}")
+	if err != nil || upstream == "" {
+		return false, nil
+	}
+	head, err := gitOutput(workDir, "rev-parse", "HEAD")
+	if err != nil {
+		return false, err
+	}
+	upstreamSHA, err := gitOutput(workDir, "rev-parse", upstream)
+	if err != nil {
+		return false, err
+	}
+	return head == upstreamSHA, nil
+}
+
 // DefaultBranch returns the name of the remote's default branch (e.g. "main"
 // or "master") as recorded in refs/remotes/origin/HEAD, falling back to the
 // currently checked-out local branch if the symbolic ref is absent (e.g. on
@@ -185,6 +227,84 @@ func DefaultBranch(workDir string) (string, error) {
 		return out, nil
 	}
 	return "", errors.New("could not determine default branch of origin (is the remote empty?)")
+}
+
+// Sync mirrors srcDir into destDir, preserving destDir/.git so the next
+// commit picks up the diff against the previously deployed state. Files in
+// destDir other than .git are removed before srcDir is copied in.
+func Sync(srcDir, destDir string) error {
+	srcInfo, err := os.Stat(srcDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("build directory %s does not exist; run `npub build` first", srcDir)
+		}
+		return fmt.Errorf("checking %s: %w", srcDir, err)
+	}
+	if !srcInfo.IsDir() {
+		return fmt.Errorf("build path %s is not a directory", srcDir)
+	}
+	if err := clearExceptGit(destDir); err != nil {
+		return err
+	}
+	return copyTree(srcDir, destDir)
+}
+
+// clearExceptGit removes every entry in destDir other than the .git
+// directory, so a subsequent copy yields a clean mirror.
+func clearExceptGit(destDir string) error {
+	entries, err := os.ReadDir(destDir)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", destDir, err)
+	}
+	for _, e := range entries {
+		if e.Name() == ".git" {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(destDir, e.Name())); err != nil {
+			return fmt.Errorf("removing %s: %w", e.Name(), err)
+		}
+	}
+	return nil
+}
+
+func copyTree(srcDir, destDir string) error {
+	return filepath.WalkDir(srcDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+		if rel == "." {
+			return nil
+		}
+		dest := filepath.Join(destDir, rel)
+		if d.IsDir() {
+			return os.MkdirAll(dest, 0o755)
+		}
+		return copyFile(path, dest)
+	})
+}
+
+func copyFile(src, dest string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = in.Close() }()
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	out, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return err
+	}
+	return out.Close()
 }
 
 func verifyOrigin(workDir, repoURL string) error {
