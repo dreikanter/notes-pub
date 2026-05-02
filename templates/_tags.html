@@ -2,7 +2,7 @@
 {{if .Tags}}
   <div class="not-prose hidden sm:flex flex-shrink-0 flex-col items-start gap-2 max-w-44">
     {{range .Tags}}
-      <a href="/tags/{{.}}" class="text-sm no-underline rounded-md px-2 py-1 {{if eq . $.CurrentTag}}bg-slate-500 text-slate-100{{else}}bg-slate-100 text-slate-600 hover:text-slate-800{{end}}">#{{.}}</a>
+      <a href="/tags/{{.}}" class="text-sm no-underline rounded-md px-2 py-1 {{if eq . $.CurrentTag}}bg-slate-500 text-slate-100 dark:bg-slate-600{{else}}bg-slate-100 text-slate-600 hover:text-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-slate-100{{end}}">#{{.}}</a>
     {{end}}
   </div>
 {{end}}
@@ -12,7 +12,7 @@
 {{if .Tags}}
   <div class="not-prose sm:hidden mb-6 flex flex-wrap gap-2">
     {{range .Tags}}
-      <a href="/tags/{{.}}" class="text-sm no-underline rounded-md px-2 py-1 {{if eq . $.CurrentTag}}bg-slate-500 text-slate-100{{else}}bg-slate-100 text-slate-600 hover:text-slate-800{{end}}">#{{.}}</a>
+      <a href="/tags/{{.}}" class="text-sm no-underline rounded-md px-2 py-1 {{if eq . $.CurrentTag}}bg-slate-500 text-slate-100 dark:bg-slate-600{{else}}bg-slate-100 text-slate-600 hover:text-slate-800 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-slate-100{{end}}">#{{.}}</a>
     {{end}}
   </div>
 {{end}}
