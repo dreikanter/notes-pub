@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
 @plugin "@tailwindcss/typography";
 @config "../tailwind.config.js";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @source "../templates/**/*.html";
 @source "../templates/**/*.xml";
