@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add `npub clear` to remove only the managed `<cache_path>/build` output directory, guarded by an npub marker file and dangerous-path checks.
+
 ### Changed
 
 - Adopt an Unreleased-first changelog and release-PR versioning workflow so multiple PRs can be bundled into one release ([#83]).

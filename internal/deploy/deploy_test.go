@@ -43,7 +43,7 @@ func TestBuildGitAndLockDir(t *testing.T) {
 	assert.Equal(t, "/tmp/whatever/.deploy.lock", LockPath(cache))
 }
 
-func TestAcquireLockRejectsConcurrentDeploy(t *testing.T) {
+func TestAcquireLockRejectsConcurrentUse(t *testing.T) {
 	cache := t.TempDir()
 
 	lock, err := AcquireLock(cache)
@@ -53,7 +53,7 @@ func TestAcquireLockRejectsConcurrentDeploy(t *testing.T) {
 	second, err := AcquireLock(cache)
 	require.Error(t, err)
 	assert.Nil(t, second)
-	assert.Contains(t, err.Error(), "another `npub deploy` is in progress")
+	assert.Contains(t, err.Error(), "another `npub` command is using this cache")
 	assert.Contains(t, err.Error(), LockPath(cache))
 
 	require.NoError(t, lock.Release())

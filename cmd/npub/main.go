@@ -83,6 +83,17 @@ operations happen in deploy.`,
 		if err != nil {
 			return err
 		}
+		if f := cmd.Flags().Lookup("out"); f == nil || !f.Changed {
+			cacheDir, err := resolveCacheDir(cfg)
+			if err != nil {
+				return err
+			}
+			lock, err := deploy.AcquireLock(cacheDir)
+			if err != nil {
+				return err
+			}
+			defer func() { _ = lock.Release() }()
+		}
 
 		log.Printf("building site from %s to %s", cfg.NotesPath, buildPath)
 		store := note.NewOSStore(cfg.NotesPath)
@@ -154,6 +165,54 @@ With --dry-run, deploy commits locally but skips the push.`,
 		}
 		log.Println("deploy complete")
 		return nil
+	},
+}
+
+var clearCmd = &cobra.Command{
+	Use:   "clear",
+	Short: "Clear the managed build output directory",
+	Long: `Clear the managed build output directory at <cache_path>/build.
+
+clear only operates on npub's managed cache layout. It does not accept an
+arbitrary path or --out override. The build directory must either be empty or
+contain npub's ownership marker.`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfgPath, _ := cmd.Flags().GetString("config")
+		cfg, err := loadConfigForClear(cmd, cfgPath)
+		if err != nil {
+			return err
+		}
+		cacheDir, err := resolveCacheDir(cfg)
+		if err != nil {
+			return err
+		}
+		buildDir := deploy.BuildDir(cacheDir)
+
+		lock, err := deploy.AcquireLock(cacheDir)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = lock.Release() }()
+
+		if err := validateClearTarget(buildDir, cacheDir, cfg); err != nil {
+			return err
+		}
+		dryRun, _ := cmd.Flags().GetBool("dry-run")
+		if dryRun {
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "would clear %s\n", buildDir)
+			return err
+		}
+		cleared, err := clearBuildDir(buildDir)
+		if err != nil {
+			return err
+		}
+		if !cleared {
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s does not exist\n", buildDir)
+			return err
+		}
+		_, err = fmt.Fprintf(cmd.OutOrStdout(), "cleared %s\n", buildDir)
+		return err
 	},
 }
 
@@ -384,6 +443,120 @@ func loadConfigOpt(cmd *cobra.Command, cfgPath string) (config.Config, error) {
 	return cfg, err
 }
 
+func loadConfigForClear(cmd *cobra.Command, cfgPath string) (config.Config, error) {
+	cfg, _, err := loadConfig(cmd, cfgPath)
+	if err != nil && !strings.HasPrefix(err.Error(), "missing required fields:") {
+		return cfg, err
+	}
+	return cfg, nil
+}
+
+func clearBuildDir(buildDir string) (bool, error) {
+	info, err := os.Stat(buildDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("checking build directory %s: %w", buildDir, err)
+	}
+	if !info.IsDir() {
+		return false, fmt.Errorf("build path %s is not a directory", buildDir)
+	}
+	entries, err := os.ReadDir(buildDir)
+	if err != nil {
+		return false, fmt.Errorf("reading build directory %s: %w", buildDir, err)
+	}
+	if len(entries) > 0 {
+		if _, err := os.Stat(filepath.Join(buildDir, build.BuildMarkerName)); err != nil {
+			if os.IsNotExist(err) {
+				return false, fmt.Errorf("refusing to clear %s: directory is not marked as an npub build directory", buildDir)
+			}
+			return false, fmt.Errorf("checking build marker: %w", err)
+		}
+	}
+	if err := os.RemoveAll(buildDir); err != nil {
+		return false, fmt.Errorf("clearing %s: %w", buildDir, err)
+	}
+	return true, nil
+}
+
+func validateClearTarget(buildDir, cacheDir string, cfg config.Config) error {
+	if !samePath(buildDir, deploy.BuildDir(cacheDir)) {
+		return fmt.Errorf("refusing to clear %s: target must be exactly %s", buildDir, deploy.BuildDir(cacheDir))
+	}
+	if buildDir == "" {
+		return fmt.Errorf("refusing to clear empty build path")
+	}
+	absBuild, err := filepath.Abs(buildDir)
+	if err != nil {
+		return fmt.Errorf("resolving build path: %w", err)
+	}
+	if absBuild == string(filepath.Separator) {
+		return fmt.Errorf("refusing to clear dangerous build path: %s", absBuild)
+	}
+	if info, err := os.Lstat(absBuild); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to clear symlinked build directory: %s", absBuild)
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("checking build path %s: %w", absBuild, err)
+	}
+
+	important := map[string]string{
+		"cache_path":  cacheDir,
+		"git dir":     deploy.GitDir(cacheDir),
+		"notes_path":  cfg.NotesPath,
+		"assets_path": cfg.AssetsPath,
+		"static_path": cfg.StaticPath,
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		important["home directory"] = home
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		important["current working directory"] = cwd
+	}
+	for name, path := range important {
+		if path == "" {
+			continue
+		}
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			return fmt.Errorf("resolving %s: %w", name, err)
+		}
+		if sameAbsPath(absBuild, absPath) {
+			return fmt.Errorf("refusing to clear %s: it is the %s", absBuild, name)
+		}
+		if isAncestor(absBuild, absPath) {
+			return fmt.Errorf("refusing to clear %s: it contains the %s %s", absBuild, name, absPath)
+		}
+	}
+	return nil
+}
+
+func samePath(a, b string) bool {
+	absA, errA := filepath.Abs(a)
+	absB, errB := filepath.Abs(b)
+	if errA != nil || errB != nil {
+		return filepath.Clean(a) == filepath.Clean(b)
+	}
+	return sameAbsPath(absA, absB)
+}
+
+func sameAbsPath(a, b string) bool {
+	return filepath.Clean(a) == filepath.Clean(b)
+}
+
+func isAncestor(parent, child string) bool {
+	parent = filepath.Clean(parent)
+	child = filepath.Clean(child)
+	if sameAbsPath(parent, child) {
+		return false
+	}
+	rel, err := filepath.Rel(parent, child)
+	if err != nil {
+		return false
+	}
+	return rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
 func init() {
 	if Version == "dev" {
 		if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "(devel)" {
@@ -399,6 +572,7 @@ func init() {
 	buildCmd.Flags().String("out", "", "output directory (overrides the deploy_repo cache build path)")
 	configCmd.Flags().String("out", "", "preview build path override")
 	deployCmd.Flags().Bool("dry-run", false, "commit locally but skip git push")
+	clearCmd.Flags().Bool("dry-run", false, "print the managed build directory without removing it")
 
 	serveCmd.Flags().String("dir", "", "directory to serve (defaults to the deploy_repo cache build path)")
 	serveCmd.Flags().String("host", "localhost", "interface to bind")
@@ -408,6 +582,7 @@ func init() {
 	rootCmd.AddCommand(buildCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(deployCmd)
+	rootCmd.AddCommand(clearCmd)
 	rootCmd.AddCommand(serveCmd)
 }
 

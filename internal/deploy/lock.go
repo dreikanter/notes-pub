@@ -40,7 +40,7 @@ func AcquireLock(cacheDir string) (*Lock, error) {
 	if err := lockFile(file); err != nil {
 		_ = file.Close()
 		if errors.Is(err, errLockHeld) {
-			return nil, fmt.Errorf("another `npub deploy` is in progress (lock at `%s`); rerun once it finishes", path)
+			return nil, fmt.Errorf("another `npub` command is using this cache (lock at `%s`); rerun once it finishes", path)
 		}
 		return nil, fmt.Errorf("locking deploy cache %s: %w", path, err)
 	}
