@@ -2,22 +2,27 @@
 
 ## [Unreleased]
 
+## [0.2.17] - 2026-05-02
+
 ### Added
 
 - Add `npub clear` to remove only the managed `<cache_path>/build` output directory, guarded by an npub marker file and dangerous-path checks ([#86]).
 
 ### Changed
 
-- Rename the cache lock file from `.deploy.lock` to `.npub-cache.lock` and make `npub clear --dry-run` validate marker guardrails.
-- Remove the `npub build --out` override so builds always target the managed `<cache_path>/build` directory.
+- Rename the cache lock file from `.deploy.lock` to `.npub-cache.lock` and make `npub clear --dry-run` validate marker guardrails ([#87]).
+- Remove the `npub build --out` override so builds always target the managed `<cache_path>/build` directory ([#86]).
 - Adopt an Unreleased-first changelog and release-PR versioning workflow so multiple PRs can be bundled into one release ([#83]).
 
 ### Fixed
 
-- Make `npub build` atomic by rendering into a temporary directory before replacing `<cache_path>/build`, leaving the previous successful build intact if rendering fails.
-- Fail fast when another `npub deploy` is already using the same cache directory, avoiding concurrent git index mutations.
+- Make `npub build` atomic by rendering into a temporary directory before replacing `<cache_path>/build`, leaving the previous successful build intact if rendering fails ([#88]).
+- Fail fast when another `npub deploy` is already using the same cache directory, avoiding concurrent git index mutations ([#84]).
 
+[#88]: https://github.com/dreikanter/npub/pull/88
+[#87]: https://github.com/dreikanter/npub/pull/87
 [#86]: https://github.com/dreikanter/npub/pull/86
+[#84]: https://github.com/dreikanter/npub/pull/84
 [#83]: https://github.com/dreikanter/npub/pull/83
 
 ## [0.2.16]
