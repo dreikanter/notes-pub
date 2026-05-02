@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/alecthomas/chroma/v2/styles"
@@ -114,11 +115,23 @@ func isExternalURL(s string) bool {
 	return len(s) > 8 && (s[:8] == "https://" || s[:7] == "http://")
 }
 
-// HighlightCSS returns the Chroma CSS for the friendly style, scoped to .chroma.
+// HighlightCSS returns Chroma CSS for both the light and dark themes, scoped
+// so the dark theme applies only when html carries the .dark class.
 func HighlightCSS() string {
+	light := scopedChromaCSS("monokailight", "html:not(.dark) ")
+	dark := scopedChromaCSS("tokyonight-night", "html.dark ")
+	return light + dark
+}
+
+func scopedChromaCSS(styleName, prefix string) string {
 	var buf bytes.Buffer
 	formatter := chromahtml.New(chromahtml.WithClasses(true), chromahtml.WithCSSComments(false))
-	style := styles.Get("monokailight")
+	style := styles.Get(styleName)
 	_ = formatter.WriteCSS(&buf, style)
-	return buf.String()
+	out := buf.String()
+	out = strings.ReplaceAll(out, ".chroma", prefix+".chroma")
+	out = chromaBgRule.ReplaceAllString(out, prefix+".bg ")
+	return out
 }
+
+var chromaBgRule = regexp.MustCompile(`(?m)^\.bg `)

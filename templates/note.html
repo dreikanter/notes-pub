@@ -2,18 +2,18 @@
 
 <div class="not-prose flex flex-row flex-wrap items-baseline gap-2 text-slate-400 !mb-8">
   <time datetime="{{.Note.PublishedAt.Format "2006-01-02"}}">{{.Note.PublishedAt.Format "2 Jan 2006"}}</time>{{if .Note.Tags}}<span>&middot;</span>{{range .Note.Tags}}
-  <a href="/tags/{{.}}" class="no-underline hover:underline font-normal !text-slate-400 hover:!text-slate-700">#{{.}}</a>{{end}}{{end}}
+  <a href="/tags/{{.}}" class="no-underline hover:underline font-normal !text-slate-400 hover:!text-slate-700 dark:hover:!text-slate-200">#{{.}}</a>{{end}}{{end}}
 </div>
 
 {{.Note.Body}}
 
 {{if .Related}}
-  <aside aria-labelledby="related-heading" class="not-prose -mx-4 mt-10 px-4 py-3 bg-slate-100 text-slate-500 sm:rounded-lg">
-    <h2 id="related-heading" class="font-medium text-slate-600 mb-3">Somewhat related</h2>
+  <aside aria-labelledby="related-heading" class="not-prose -mx-4 mt-10 px-4 py-3 bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 sm:rounded-lg">
+    <h2 id="related-heading" class="font-medium text-slate-600 dark:text-slate-300 mb-3">Somewhat related</h2>
     <ul class="list-disc list-inside space-y-1.5">
       {{range .Related}}
         <li>
-          <a href="/{{.PublicPath}}" class="text-slate-600 underline hover:text-slate-800">{{.Title}}</a>
+          <a href="/{{.PublicPath}}" class="text-slate-600 dark:text-slate-300 underline hover:text-slate-800 dark:hover:text-slate-100">{{.Title}}</a>
         </li>
       {{end}}
     </ul>
