@@ -1,17 +1,18 @@
 <h1 class="!mb-8 !mt-8 !leading-tight"><a href="/tags/{{.CurrentTag}}" class="no-underline">#{{.CurrentTag}}</a></h1>
+{{template "mobile_tags" .}}
 
 <div class="flex flex-row gap-8">
   <div class="flex-1 min-w-0">
-    <ul class="!my-0">
+    <ul class="list-none sm:list-disc !ps-0 sm:!ps-[1.625em] !my-0">
       {{range .TaggedPages}}
-        <li>
-          <a href="/{{.PublicPath}}">{{.Title}}</a>
+        <li class="leading-normal !ps-0 sm:!ps-[0.375em]">
+          <a href="/{{.PublicPath}}">{{.Title}}</a><br>
           <small class="text-sm text-slate-400"><time datetime="{{.PublishedAt.Format "2006-01-02"}}">{{.PublishedAt.Format "2006/01/02"}}</time></small>
         </li>
       {{end}}
     </ul>
   </div>
-  {{template "tags" .Tags}}
+  {{template "tags" .}}
 </div>
 
 <hr class="!my-6">

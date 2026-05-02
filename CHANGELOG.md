@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Hide the tags sidebar on mobile, show tags as chips on index/tag pages, highlight the current tag on tag pages, and tighten mobile list spacing while preserving list markers on wider screens.
+
 ## [0.2.17] - 2026-05-02
 
 ### Added
