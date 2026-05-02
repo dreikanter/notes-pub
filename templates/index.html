@@ -2,9 +2,9 @@
 
 <div class="flex flex-row gap-8">
   <div class="flex-1 min-w-0">
-    <ul class="list-none !pl-0 !my-0">
+    <ul class="list-none sm:list-disc !ps-0 sm:!ps-[1.625em] !my-0">
       {{range .NotePages}}
-        <li>
+        <li class="leading-normal !ps-0 sm:!ps-[0.375em]">
           <a href="/{{.PublicPath}}">{{.Title}}</a><br>
           <small class="text-sm text-slate-400"><time datetime="{{.PublishedAt.Format "2006-01-02"}}">{{.PublishedAt.Format "2006/01/02"}}</time></small>
         </li>

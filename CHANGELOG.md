@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Hide the tags sidebar on mobile and tighten index/tag list spacing there while preserving list markers on wider screens.
+
 ## [0.2.17] - 2026-05-02
 
 ### Added
