@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add a dark theme with a navbar toggle that persists in localStorage, paired with the `tokyonight-night` Chroma syntax-highlighting theme.
+
 ### Changed
 
 - Hide the tags sidebar on mobile, show tags as chips on index/tag pages, highlight the current tag on tag pages, and tighten mobile list spacing while preserving list markers on wider screens.
