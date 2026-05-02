@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.16]
+
+### Changed
+
+- Pin `github.com/dreikanter/notes` to the released `v0.3.30` tag, replacing the pseudo-version introduced in #81 ([#82]).
+
+[#82]: https://github.com/dreikanter/npub/pull/82
+
 ## [0.2.15]
 
 ### Changed
