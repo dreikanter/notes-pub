@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Simplify the README's Configuration section to point at the sample file, `npub init`, and `--config`; expand the assets cache explanation; add subheaders to Usage and a frontmatter example to Notes format.
 - Update Go dependencies to the latest stable versions.
 
 ## [0.2.18] - 2026-05-02
