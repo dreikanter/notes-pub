@@ -28,6 +28,14 @@ make build
 
 Run `npub init [dir]` to drop a commented `npub.yml` sample (defaults to the current directory). The sample lists every option with its default and a short description — edit it to suit your site. See [`npub.yml.sample`](./npub.yml.sample) for the full list.
 
+The recommended location is your notes directory itself:
+
+```sh
+npub init "$NOTES_PATH"
+```
+
+Keeping `npub.yml` next to the notes lets discovery find it automatically (step 2 below) and versions the config alongside the content it describes.
+
 Point npub at a non-default config file with `--config <path>`. CLI flags override YAML values; use `npub config` to preview the merged result.
 
 Config file discovery order:
@@ -53,7 +61,7 @@ Files in the `static` subdirectory of `notes_path` are copied as-is to the build
 ### Initialize a project
 
 ```sh
-npub init
+npub init "$NOTES_PATH"   # recommended: place npub.yml inside your notes dir
 # or create a new project directory
 npub init ./my-notes-site
 ```
