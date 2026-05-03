@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Update Go dependencies to the latest stable versions.
+
 ## [0.2.18] - 2026-05-02
 
 ### Added
